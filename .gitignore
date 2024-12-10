@@ -1,5 +1,8 @@
 # MacOS
 .DS_Store
 
+# Jupyter Lab
+.ipynb_checkpoints
+
 # DeepCAD repository
 DeepCAD/
