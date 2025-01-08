@@ -10,7 +10,7 @@ The DeepCAD model from the [DeepCAD: A Deep Generative Network for Computer-Aide
 First you can download the data from the [DeepCAD dataset](http://www.cs.columbia.edu/cg/deepcad/data.tar) and extract it in the `data` folder in the main directory.
 
 ### Turn CAD Sequences into Point Clouds
-In order to obtain the point cloud representation of the CAD sequences provided by the DeepCAD dataset use the script `json2pc.py`:
+To convert CAD sequences from the DeepCAD dataset into point clouds, use the `json2pc.py` script:
 ```bash
 $ cd models/DeepCAD/dataset
 $ python json2pc.py
