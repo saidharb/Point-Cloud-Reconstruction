@@ -9,11 +9,17 @@ from trimesh.sample import sample_surface
 import argparse
 import sys
 sys.path.append("..")
-from cadlib.extrude import CADSequence
-from cadlib.visualize import CADsolid2pc, create_CAD
-from utils.pc_utils import write_ply, read_ply
+print(os.getcwd())
+from models.DeepCAD.cadlib.extrude import CADSequence
+from models.DeepCAD.cadlib.visualize import CADsolid2pc, create_CAD
+from models.DeepCAD.utils.pc_utils import write_ply, read_ply
 
-DATA_ROOT = "../data"
+parser = argparse.ArgumentParser()
+parser.add_argument('--only_test', action="store_true", help="only convert test data")
+parser.add_argument('--data_root', type=str, required=True, help="The root directory of the data.")
+args = parser.parse_args()
+
+DATA_ROOT = args.data_root
 RAW_DATA = os.path.join(DATA_ROOT, "cad_json")
 RECORD_FILE = os.path.join(DATA_ROOT, "train_val_test_split.json")
 
@@ -68,10 +74,6 @@ with open(RECORD_FILE, "r") as fp:
 
 # process_one(all_data["train"][3])
 # exit()
-
-parser = argparse.ArgumentParser()
-parser.add_argument('--only_test', action="store_true", help="only convert test data")
-args = parser.parse_args()
 
 if not args.only_test:
     Parallel(n_jobs=10, verbose=2)(delayed(process_one)(x) for x in all_data["train"])

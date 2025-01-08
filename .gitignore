@@ -5,9 +5,14 @@
 .ipynb_checkpoints
 .virtual_documents/
 
-# DeepCAD repository
-DeepCAD/
+# DeepCAD repository in main directory
+/DeepCAD/
 
-# PointNet repository
+# PointNet repository in main directory
 pointnet.pytorch/
 Pointnet_Pointnet2_pytorch/
+
+# pycache files
+__pycache__/
+*.pyc
+
