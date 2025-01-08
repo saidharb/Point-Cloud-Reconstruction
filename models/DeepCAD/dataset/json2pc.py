@@ -9,7 +9,7 @@ from trimesh.sample import sample_surface
 import argparse
 import sys
 sys.path.append("..")
-print(os.getcwd())
+
 from models.DeepCAD.cadlib.extrude import CADSequence
 from models.DeepCAD.cadlib.visualize import CADsolid2pc, create_CAD
 from models.DeepCAD.utils.pc_utils import write_ply, read_ply
