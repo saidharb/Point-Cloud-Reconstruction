@@ -18,8 +18,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--only_test', action="store_true", help="only convert test data")
 args = parser.parse_args()
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
-DATA_ROOT = os.path.abspath(os.path.join(script_dir, "../../../", "data"))
+DATA_ROOT = "../../../data"
 RAW_DATA = os.path.join(DATA_ROOT, "cad_json")
 RECORD_FILE = os.path.join(DATA_ROOT, "train_val_test_split.json")
 
