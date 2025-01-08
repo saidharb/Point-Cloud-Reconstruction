@@ -1,7 +1,7 @@
 # Point-Cloud-Reconstruction
 GitHub repository for my Masters Thesis
 
-The goal of this project is to predcit CAD sequences from input point clouds. 
+The goal of this project is to predict CAD sequences from input point clouds. 
 
 ## DeepCAD
 The DeepCAD model from the [DeepCAD: A Deep Generative Network for Computer-Aided Design Models](https://arxiv.org/abs/2105.09492) ICCV 2021 will serve in two purposes: First as an encoder for CAD sequences and second as the decoder for the point cloud latent representations.
