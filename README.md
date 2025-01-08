@@ -4,7 +4,7 @@ GitHub repository for my Masters Thesis
 The goal of this project is to predict CAD sequences from input point clouds. 
 
 ## DeepCAD
-The DeepCAD model from the [DeepCAD: A Deep Generative Network for Computer-Aided Design Models](https://arxiv.org/abs/2105.09492) ICCV 2021 will serve in two purposes: First as an encoder for CAD sequences and second as the decoder for the point cloud latent representations.
+The DeepCAD model from the [DeepCAD: A Deep Generative Network for Computer-Aided Design Models](https://arxiv.org/abs/2105.09492) ICCV 2021 by Wu et al. will serve in two purposes: First as an encoder for CAD sequences and second as the decoder for the point cloud latent representations.
 
 ### Data
 First you can download the data from the [DeepCAD dataset](http://www.cs.columbia.edu/cg/deepcad/data.tar) and extract it in the `data` folder in the main directory.
