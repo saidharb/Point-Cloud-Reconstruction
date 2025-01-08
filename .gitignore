@@ -5,6 +5,9 @@
 .ipynb_checkpoints
 .virtual_documents/
 
+# data repository
+/data
+
 # DeepCAD repository in main directory
 /DeepCAD/
 
