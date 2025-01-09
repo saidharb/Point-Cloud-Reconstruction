@@ -18,6 +18,8 @@ class BaseTrainer(object):
         self.clock = TrainClock()
         self.batch_size = cfg.batch_size
 
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         # build network
         self.build_net(cfg)
 
@@ -73,7 +75,7 @@ class BaseTrainer(object):
         if not os.path.exists(load_path):
             raise ValueError("Checkpoint {} not exists.".format(load_path))
 
-        checkpoint = torch.load(load_path)
+        checkpoint = torch.load(load_path, map_location=torch.device(self.device))
         print("Loading checkpoint from {} ...".format(load_path))
         if isinstance(self.net, nn.DataParallel):
             self.net.module.load_state_dict(checkpoint['model_state_dict'])

@@ -9,8 +9,9 @@ from cadlib.macro import *
 
 
 class TrainerAE(BaseTrainer):
+
     def build_net(self, cfg):
-        self.net = CADTransformer(cfg).cuda()
+        self.net = CADTransformer(cfg).to(self.device)
 
     def set_optimizer(self, cfg):
         """set optimizer and lr scheduler used in training"""
@@ -18,11 +19,11 @@ class TrainerAE(BaseTrainer):
         self.scheduler = GradualWarmupScheduler(self.optimizer, 1.0, cfg.warmup_step)
 
     def set_loss_function(self):
-        self.loss_func = CADLoss(self.cfg).cuda()
+        self.loss_func = CADLoss(self.cfg).to(self.device)
 
     def forward(self, data):
-        commands = data['command'].cuda() # (N, S)
-        args = data['args'].cuda()  # (N, S, N_ARGS)
+        commands = data['command'].to(self.device) # (N, S)
+        args = data['args'].to(self.device)  # (N, S, N_ARGS)
 
         outputs = self.net(commands, args)
         loss_dict = self.loss_func(outputs)
@@ -31,8 +32,8 @@ class TrainerAE(BaseTrainer):
 
     def encode(self, data, is_batch=False):
         """encode into latent vectors"""
-        commands = data['command'].cuda()
-        args = data['args'].cuda()
+        commands = data['command'].to(self.device)
+        args = data['args'].to(self.device)
         if not is_batch:
             commands = commands.unsqueeze(0)
             args = args.unsqueeze(0)
@@ -49,7 +50,7 @@ class TrainerAE(BaseTrainer):
         out_command = torch.argmax(torch.softmax(outputs['command_logits'], dim=-1), dim=-1)  # (N, S)
         out_args = torch.argmax(torch.softmax(outputs['args_logits'], dim=-1), dim=-1) - 1  # (N, S, N_ARGS)
         if refill_pad: # fill all unused element to -1
-            mask = ~torch.tensor(CMD_ARGS_MASK).bool().cuda()[out_command.long()]
+            mask = ~torch.tensor(CMD_ARGS_MASK).bool().to(self.device)[out_command.long()]
             out_args[mask] = -1
 
         out_cad_vec = torch.cat([out_command.unsqueeze(-1), out_args], dim=-1)
@@ -70,8 +71,8 @@ class TrainerAE(BaseTrainer):
 
         for i, data in enumerate(pbar):
             with torch.no_grad():
-                commands = data['command'].cuda()
-                args = data['args'].cuda()
+                commands = data['command'].to(self.device)
+                args = data['args'].to(self.device)
                 outputs = self.net(commands, args)
                 out_args = torch.argmax(torch.softmax(outputs['args_logits'], dim=-1), dim=-1) - 1
                 out_args = out_args.long().detach().cpu().numpy()  # (N, S, n_args)
