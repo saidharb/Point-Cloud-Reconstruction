@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 
 ## [0.1.2] - 2025-01-09
 ### Added
-- `self.device` attribute to the `BaseTrainer` class which dynamically determines if cuda is avaialble or cpu should be used.
+- `self.device` attribute to the `BaseTrainer` class which dynamically determines if cuda is available or cpu should be used.
 ### Changed
 - Replaced all occurences of `.cuda()` with `.to(self.device)` in the `BaseTrainer` and `TrainerAE` class to dynamically use cuda or cpu.
 
