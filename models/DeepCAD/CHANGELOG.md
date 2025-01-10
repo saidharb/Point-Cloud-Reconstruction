@@ -3,6 +3,10 @@
 The content of this directory was cloned from [ChrisWu1997 DeepCAD](https://github.com/ChrisWu1997/DeepCAD) repository on January 7th 2025. 
 All notable changes to this project will be documented in this file.
 
+## [0.1.3] - 2025-01-10
+### Changed
+- Removed corrupt index from split in `json2pc.py`: The index '0011/00116212' always caused a segmentation error when creating `.ply` files from `.json` files. Therefore it is removed from `all_data['train']`
+
 ## [0.1.2] - 2025-01-09
 ### Added
 - `self.device` attribute to the `BaseTrainer` class which dynamically determines if cuda is available or cpu should be used.
