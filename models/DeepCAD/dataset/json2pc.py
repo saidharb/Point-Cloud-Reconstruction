@@ -45,7 +45,7 @@ def process_one(data_id):
     json_path = os.path.join(RAW_DATA, data_id + ".json")
     with open(json_path, "r") as fp:
         data = json.load(fp)
-
+    
     try:
         cad_seq = CADSequence.from_dict(data)
         cad_seq.normalize()
@@ -53,13 +53,13 @@ def process_one(data_id):
     except Exception as e:
         print("create_CAD failed:", data_id)
         return None
-
+    
     try:
         out_pc = CADsolid2pc(shape, N_POINTS, data_id.split("/")[-1])
     except Exception as e:
         print("convert point cloud failed:", data_id)
         return None
-
+  
     save_path = os.path.join(SAVE_DIR, data_id + ".ply")
     truck_dir = os.path.dirname(save_path)
     if not os.path.exists(truck_dir):
@@ -73,6 +73,9 @@ with open(RECORD_FILE, "r") as fp:
 
 # process_one(all_data["train"][3])
 # exit()
+
+# Remove corrupt file 0011/00116212.json
+all_data['train'].remove('0011/00116212')
 
 if not args.only_test:
     Parallel(n_jobs=10, verbose=2)(delayed(process_one)(x) for x in all_data["train"])
