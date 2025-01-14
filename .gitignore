@@ -13,9 +13,11 @@
 
 # PointNet repository in main directory
 pointnet.pytorch/
-Pointnet_Pointnet2_pytorch/
+/Pointnet_Pointnet2_pytorch/
 
 # pycache files
 __pycache__/
 *.pyc
 
+# Models
+**/*.pth
