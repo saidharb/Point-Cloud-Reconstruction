@@ -1,15 +1,7 @@
 import os
-from glob import glob
 
-import h5py
-import numpy as np
 import argparse
-import open3d as o3d
-import torch
-from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
-from tqdm import tqdm
-import json
 
 from dataset import PointCloudEmbeddingDataset
         
