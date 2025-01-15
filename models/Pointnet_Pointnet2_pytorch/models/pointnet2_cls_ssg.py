@@ -40,11 +40,20 @@ class get_model(nn.Module):
 
 
 
-class get_loss(nn.Module):
+class get_loss_nll(nn.Module):
     def __init__(self):
-        super(get_loss, self).__init__()
+        super(get_loss_nll, self).__init__()
 
     def forward(self, pred, target, trans_feat):
         total_loss = F.nll_loss(pred, target)
+
+        return total_loss
+    
+class get_loss_mse(nn.Module):
+    def __init__(self):
+        super(get_loss_mse, self).__init__()
+
+    def forward(self, pred, target, trans_feat):
+        total_loss = F.mse_loss(pred, target)
 
         return total_loss

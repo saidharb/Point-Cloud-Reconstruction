@@ -52,7 +52,7 @@ def main(args):
     sys.path.append(os.path.join(root_dir, 'models','Pointnet_Pointnet2_pytorch', 'models'))
     model = importlib.import_module('pointnet2_cls_ssg')
     classifier = model.get_model(256, normal_channel=False)
-    criterion = model.get_loss()
+    criterion = model.get_loss_mse()
     classifier.apply(inplace_relu)
     
     ## Cuda
@@ -74,8 +74,9 @@ def main(args):
     
     # Training
     print("### Training starts ###", flush=True)
-    classifier = classifier.train()
+   
     for epoch in range(0, args.max_epoch):
+        classifier = classifier.train()
         for i, (pc, latent_rep) in enumerate(train_dataloader):
             optimizer.zero_grad()
 
@@ -87,6 +88,9 @@ def main(args):
             pc = pc.transpose(2, 1)
 
             pc, latent_rep = pc.to(device), latent_rep.to(device)
+            pred, trans_feat = classifier(pc)
+            #loss = criterion(pred, latent_rep, trans_feat)
+            print(pred.shape)
             break
 
 
@@ -100,4 +104,7 @@ if __name__ == '__main__':
 # Execute train.py either from root or from ./code
 # Give the data directory always relative to root (makes it easier)
 
-# TODO: Adapt learning rate
+# TODO: Adapt learning rate, change back to train loader, change loss, change PN++ model
+# maybe use a sample one hot vector just to check if model works?
+
+# Changelog PN++: added mse loss, change get_loss to get_loss_nll
