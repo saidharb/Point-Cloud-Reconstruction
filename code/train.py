@@ -106,5 +106,3 @@ if __name__ == '__main__':
 
 # TODO: Adapt learning rate, change back to train loader, change loss, change PN++ model
 # maybe use a sample one hot vector just to check if model works?
-
-# Changelog PN++: added mse loss, change get_loss to get_loss_nll
