@@ -1,9 +1,12 @@
 import os
-
+import sys
 import argparse
+import importlib
+
 from torch.utils.data import DataLoader
 
 from dataset import PointCloudEmbeddingDataset
+
         
 def parse_args():
     '''PARAMETERS'''
@@ -11,9 +14,6 @@ def parse_args():
         'Train PointNet++ to encode point clouds into the same latent space as DeepCAD '
         'does with CAD Sequences.'
     )
-    # for the data_root argument: 
-    # I want the user to give the data directory from the root directory
-    # It would be kind of laborious to construct the relative file path to data from this script
     parser.add_argument('--data_root', type=str, default='data', help='data directory relative to root directory')
     parser.add_argument('--batch_size', type=int, default=24, help='batch size in training')
     return parser.parse_args()
@@ -33,8 +33,13 @@ def main(args):
     print(f"Batch size: {args.batch_size}", flush=True)
     print("", flush=True)
 
-    train_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'test')
+    # Load data
+    train_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'test') # CHANGE to train
     train_dataloader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle = True)
+
+    # Load model
+    sys.path.append(os.path.join(root_dir, 'models','Pointnet_Pointnet2_pytorch', 'models'))
+    model = importlib.import_module('pointnet2_cls_ssg')
 
 if __name__ == '__main__':
     args = parse_args()
