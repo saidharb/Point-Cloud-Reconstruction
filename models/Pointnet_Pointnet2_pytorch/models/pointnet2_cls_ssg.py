@@ -51,7 +51,7 @@ class get_loss_mse(nn.Module):
     def __init__(self):
         super(get_loss_mse, self).__init__()
 
-    def forward(self, pred, target, trans_feat):
+    def forward(self, pred, target):
         total_loss = F.mse_loss(pred, target)
 
         return total_loss
