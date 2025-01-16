@@ -19,8 +19,8 @@ def parse_args():
         'does with CAD Sequences.'
     )
     parser.add_argument('--data_root', type=str, default='data', help='data directory relative to root directory')
-    parser.add_argument('--batch_size', type=int, default=24, help='batch size in training')
-    parser.add_argument('--max_epoch', type=int, default=50, help='maximum number of epochs for training')
+    parser.add_argument('--batch_size', type=int, default=24, help='batch size')
+    parser.add_argument('--max_epoch', type=int, default=50, help='maximum number of epochs')
     return parser.parse_args()
 
 def inplace_relu(m):
@@ -82,7 +82,7 @@ def main(args):
     for epoch in range(0, args.max_epoch):
         train_running_loss = 0.0
         classifier = classifier.train()
-        print(f"Epoch {epoch}/{args.max_epoch}")
+        print(f"Epoch {epoch + 1}/{args.max_epoch}")
 
         for i, (pc, latent_rep) in enumerate(train_dataloader):
             optimizer.zero_grad()
@@ -92,11 +92,11 @@ def main(args):
             pc[:, :, 0:3] = provider.random_scale_point_cloud(pc[:, :, 0:3])
             pc[:, :, 0:3] = provider.shift_point_cloud(pc[:, :, 0:3])
             pc = torch.Tensor(pc)
-            pc = pc.transpose(2, 1)
+            pc = pc.transpose(2, 1) # [B, C, N]
 
             pc, latent_rep = pc.to(device), latent_rep.to(device)
-            pred, trans_feat = classifier(pc)
-            loss_train = criterion(pred, latent_rep, trans_feat)
+            pred, _ = classifier(pc)
+            loss_train = criterion(pred, latent_rep)
 
             # Metrics
             train_running_loss += loss_train.cpu().item()
@@ -107,13 +107,33 @@ def main(args):
 
             print(f"Batch {i}/{len(train_dataloader)}: Loss: {loss_train.cpu().item()} --- RMSE: {scores_train.get_batch_rmse(loss_train)} --- MAE: {scores_train.get_batch_mae(pred, latent_rep)}")
 
-            if i == 3:
+            if i == 2:
                 break
-        
         scores_train.reset()
+        print("")
 
+        classifier.eval()
+        val_running_loss = 0.0
+        with torch.no_grad():
+            print(f"Validation Epoch {epoch + 1}/{args.max_epoch}")
+
+            for j, (pc, latent_rep) in enumerate(val_dataloader):
+                pc, latent_rep = pc.to(device), latent_rep.to(device)
+                pc = pc.transpose(2, 1)
+                pred, _ = classifier(pc)
+                loss_val = criterion(pred,latent_rep)
+
+                # Metrics
+                val_running_loss += loss_val.cpu().item()
+                scores_val.update(pred, latent_rep, loss_val)
+                
+                print(f"Val Batch {j}/{len(val_dataloader)}: Loss: {loss_val.cpu().item()} --- RMSE: {scores_val.get_batch_rmse(loss_val)} --- MAE: {scores_val.get_batch_mae(pred, latent_rep)}")
+                if j == 2:
+                    break
+        
+        print("")
+        scores_val.reset()
         scheduler.step()
-
 
 if __name__ == '__main__':
     args = parse_args()
@@ -127,7 +147,6 @@ if __name__ == '__main__':
 # To run the script execute before from root: export PYTHONPATH=$(pwd):$PYTHONPATH 
 
 # TODO: 
-# Class for metrics
 # Adapt learning rate
 # change back to train loader
 # Saving best model
@@ -138,5 +157,9 @@ if __name__ == '__main__':
 # output during training
 # early stopping
 # Remove seed
+# Remove breaks
 
 # CHANGELOG pointnet 16.01.: removed softmax
+
+# NEXT
+# Karpathy workflow
