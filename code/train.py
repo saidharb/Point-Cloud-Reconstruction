@@ -7,10 +7,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from dataset import PointCloudEmbeddingDataset
-provider_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "models", 'Pointnet_Pointnet2_pytorch'))
-print(provider_path)
-sys.path.append(provider_path)
-import provider
+from models.Pointnet_Pointnet2_pytorch import provider
 
         
 def parse_args():
@@ -60,7 +57,7 @@ def main(args):
     print(f"Using device: {device}\n", flush=True)
     classifier = classifier.to(device)
     criterion = criterion.to(device)
-    print("### DONE ### \n", flush=True)
+    print("--- DONE --- \n", flush=True)
 
     ## Optimizer
     optimizer = torch.optim.Adam(
@@ -89,7 +86,7 @@ def main(args):
 
             pc, latent_rep = pc.to(device), latent_rep.to(device)
             pred, trans_feat = classifier(pc)
-            #loss = criterion(pred, latent_rep, trans_feat)
+            loss = criterion(pred, latent_rep, trans_feat)
             print(pred.shape)
             break
 
@@ -103,6 +100,7 @@ if __name__ == '__main__':
 # For README:
 # Execute train.py either from root or from ./code
 # Give the data directory always relative to root (makes it easier)
+# To run the script execute before: export PYTHONPATH=$(pwd):$PYTHONPATH 
 
 # TODO: Adapt learning rate, change back to train loader, change loss, change PN++ model
 # maybe use a sample one hot vector just to check if model works?
