@@ -34,7 +34,7 @@ class PointCloudEmbeddingDataset(Dataset):
             latent_all = np.array(f[self.split + '_zs'])
         assert(self.check_latent_valid(latent_all))
         self.latent = self.filter_latent(latent_all)
-        print("### DONE ###\n", flush=True)
+        print("--- DONE ---\n", flush=True)
         
     def __len__(self):
         assert(len(self.pc) == len(self.latent)), f"The number of point clouds {len(self.pc)} is different from the number of latent representations {len(self.latent)}"
