@@ -42,8 +42,8 @@ class PointCloudEmbeddingDataset(Dataset):
         
     def __getitem__(self, idx):
         point_cloud = o3d.io.read_point_cloud(self.pc[idx])
-        point_cloud = torch.tensor(np.asarray(point_cloud.points), dtype = torch.float32)
-        latent_rep = torch.tensor(self.latent[idx], dtype = torch.float32)
+        point_cloud = torch.tensor(np.asarray(point_cloud.points), dtype = torch.float32) # [B, N, C]
+        latent_rep = torch.tensor(self.latent[idx], dtype = torch.float32) # [B, D]
         return point_cloud, latent_rep
 
     def read_split(self):
