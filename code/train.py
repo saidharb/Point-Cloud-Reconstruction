@@ -8,7 +8,9 @@ from torch.utils.data import DataLoader
 
 from dataset import PointCloudEmbeddingDataset
 from models.Pointnet_Pointnet2_pytorch import provider
+from metrics import RegressionRunningScore
 
+torch.manual_seed(42)
         
 def parse_args():
     '''PARAMETERS'''
@@ -43,6 +45,8 @@ def main(args):
     # Load data
     train_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'test') # CHANGE to train
     train_dataloader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle = True)
+    val_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'validation')
+    val_dataloader = DataLoader(val_dataset, batch_size = args.batch_size, shuffle = True)
 
     # Load model
     print("### Load PointNet++ ssg model ###\n", flush=True)
@@ -70,10 +74,16 @@ def main(args):
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.7)
     
     # Training
-    print("### Training starts ###", flush=True)
+    print("### Training starts ###\n", flush=True)
+
+    scores_train = RegressionRunningScore(len(train_dataloader))
+    scores_val = RegressionRunningScore(len(val_dataloader))
    
     for epoch in range(0, args.max_epoch):
+        train_running_loss = 0.0
         classifier = classifier.train()
+        print(f"Epoch {epoch}/{args.max_epoch}")
+
         for i, (pc, latent_rep) in enumerate(train_dataloader):
             optimizer.zero_grad()
 
@@ -86,9 +96,23 @@ def main(args):
 
             pc, latent_rep = pc.to(device), latent_rep.to(device)
             pred, trans_feat = classifier(pc)
-            loss = criterion(pred, latent_rep, trans_feat)
-            print(pred.shape)
-            break
+            loss_train = criterion(pred, latent_rep, trans_feat)
+
+            # Metrics
+            train_running_loss += loss_train.cpu().item()
+            scores_train.update(pred, latent_rep, loss_train)
+
+            loss_train.backward()
+            optimizer.step()
+
+            print(f"Batch {i}/{len(train_dataloader)}: Loss: {loss_train.cpu().item()} --- RMSE: {scores_train.get_batch_rmse(loss_train)} --- MAE: {scores_train.get_batch_mae(pred, latent_rep)}")
+
+            if i == 3:
+                break
+        
+        scores_train.reset()
+
+        scheduler.step()
 
 
 if __name__ == '__main__':
@@ -100,7 +124,19 @@ if __name__ == '__main__':
 # For README:
 # Execute train.py either from root or from ./code
 # Give the data directory always relative to root (makes it easier)
-# To run the script execute before: export PYTHONPATH=$(pwd):$PYTHONPATH 
+# To run the script execute before from root: export PYTHONPATH=$(pwd):$PYTHONPATH 
 
-# TODO: Adapt learning rate, change back to train loader, change loss, change PN++ model
-# maybe use a sample one hot vector just to check if model works?
+# TODO: 
+# Class for metrics
+# Adapt learning rate
+# change back to train loader
+# Saving best model
+# Model checkpoints
+# logging (wandb)
+# train time
+# validation
+# output during training
+# early stopping
+# Remove seed
+
+# CHANGELOG pointnet 16.01.: removed softmax
