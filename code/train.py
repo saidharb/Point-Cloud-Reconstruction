@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from dataset import PointCloudEmbeddingDataset
 from models.Pointnet_Pointnet2_pytorch import provider
 from metrics import RegressionRunningScore
+from utils import SaveBestModel
 
 torch.manual_seed(42)
         
@@ -76,17 +77,18 @@ def main(args):
         weight_decay=1e-4
         )
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.7)
-    
-    # Training
-    print("### Training starts ###\n", flush=True)
 
     scores_train = RegressionRunningScore(len(train_dataloader))
     scores_val = RegressionRunningScore(len(val_dataloader))
-   
+
+    best_model_tracker = SaveBestModel()
+    
+    # Training
+    print("### Training starts ###\n", flush=True)
     for epoch in range(0, args.max_epoch):
         train_running_loss = 0.0
         classifier = classifier.train()
-        print(f"Epoch {epoch + 1}/{args.max_epoch}")
+        print(f"Training Epoch {epoch + 1}/{args.max_epoch}")
 
         for i, (pc, latent_rep) in enumerate(train_dataloader):
             optimizer.zero_grad()
@@ -115,13 +117,16 @@ def main(args):
                   f"MAE: {scores_train.get_batch_mae(pred, latent_rep):.8f}")
 
 
-            if i == 20:
+            if i == 2:
                 break
         scores_train.reset()
-        print("")
+        train_loss = train_running_loss/len(train_dataloader)
+        print(f"Training epoch {epoch + 1} finished --- Avg. Loss/MSE: {train_loss:.8f} --- Avg. RMSE: {scores_train.get_epoch_rmse(epoch):.8f} --- Avg. MAE: {scores_train.get_epoch_mae(epoch):.8f}")
 
+        # Evaluation
         classifier.eval()
         val_running_loss = 0.0
+
         with torch.no_grad():
             print(f"Validation Epoch {epoch + 1}/{args.max_epoch}")
 
@@ -142,10 +147,19 @@ def main(args):
 
                 if j == 2:
                     break
-        
+        val_loss = val_running_loss/len(val_dataloader)
+        best_model_tracker.update(val_loss, epoch, classifier)
+
+
         print("")
         scores_val.reset()
         scheduler.step()
+
+
+
+
+
+
     
     print("--- DONE ---\n")
 
@@ -161,8 +175,9 @@ if __name__ == '__main__':
 # To run the script execute before from root: export PYTHONPATH=$(pwd):$PYTHONPATH 
 
 # TODO: 
-
-# Saving best model
+# Epoch summary train prüfen!
+# Add MSE to metric class, validation epoch summary
+# Saving best model -> with timestamp and hyperparams! mit best und latest speichern oder save interval?
 # Model checkpoints
 # logging (wandb)
 # train time
