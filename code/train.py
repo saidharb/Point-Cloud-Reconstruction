@@ -2,7 +2,6 @@ import os
 import sys
 import argparse
 import importlib
-from pprint import pprint
 
 import torch
 from torch.utils.data import DataLoader
@@ -25,8 +24,9 @@ def parse_args():
                         default='data', 
                         help='data directory relative to root directory')
     parser.add_argument('--batch_size', type=int, default=24, help='batch size')
-    parser.add_argument('--max_epoch', type=int, default=50, help='maximum number of epochs')
+    parser.add_argument('--max_epochs', type=int, default=50, help='maximum number of epochs')
     parser.add_argument('--save_interval', type=int, default=20, help='save interval for models')
+    parser.add_argument('--learning_rate', type=float, default=0.001, help="initial learning rate")
 
     return parser.parse_args()
 
@@ -48,6 +48,15 @@ def main(args):
     for key, value in vars(args).items():
         print(f"{key}: {value}", flush=True)
     print("\n--- DONE ---\n", flush=True)
+
+    config = {
+        'learning_rate': args.learning_rate,
+        'batch_size': args.batch_size,
+        'max_epochs': args.max_epochs,
+        'optimizer': 'Adam',
+        'model_type': 'pointnet2_cls_ssg',
+        'save_interval': args.save_interval
+    }
 
     # Load data
     train_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'train')
@@ -73,7 +82,7 @@ def main(args):
     ## Optimizer
     optimizer = torch.optim.Adam(
         classifier.parameters(),
-        lr=0.001,
+        lr=args.learning_rate,
         betas=(0.9, 0.999),
         eps=1e-08,
         weight_decay=1e-4
@@ -83,13 +92,13 @@ def main(args):
     scores_train = RegressionRunningScore(len(train_dataloader))
     scores_val = RegressionRunningScore(len(val_dataloader))
 
-    best_model_tracker = SaveBestModel(args.save_interval)
+    best_model_tracker = SaveBestModel(config)
     
     # Training
     print("### Training starts ###\n", flush=True)
-    for epoch in range(0, args.max_epoch):
+    for epoch in range(0, args.max_epochs):
         classifier = classifier.train()
-        print(f"Training Epoch {epoch + 1}/{args.max_epoch}")
+        print(f"Training Epoch {epoch + 1}/{args.max_epochs}")
 
         for i, (pc, latent_rep) in enumerate(train_dataloader):
             optimizer.zero_grad()
@@ -130,7 +139,7 @@ def main(args):
         classifier.eval()
 
         with torch.no_grad():
-            print(f"Validation Epoch {epoch + 1}/{args.max_epoch}")
+            print(f"Validation Epoch {epoch + 1}/{args.max_epochs}")
 
             for j, (pc, latent_rep) in enumerate(val_dataloader):
                 pc, latent_rep = pc.to(device), latent_rep.to(device)
@@ -181,11 +190,14 @@ if __name__ == '__main__':
 # Execute train.py either from root or from ./code
 # Give the data directory always relative to root (makes it easier)
 # To run the script execute before from root: export PYTHONPATH=$(pwd):$PYTHONPATH 
+# no gpu necessary, adapts dynamically
 
 # TODO: 
 
-# Saving best model -> hyperparams! mit 
-# logging (wandb)
+# Saving best model -> hyperparams!
+# logging (wandb - metrics, learning rate)
+# create logging file, which is saved where the model is saved! (trainiing time,)
+# (, save path)
 # train time
 # validation
 # output during training
@@ -193,7 +205,7 @@ if __name__ == '__main__':
 # Remove seed
 # Remove breaks
 # Turn on augmentation again
-# write test.py
+# write test.py (with log file at same save dir as model)
 # Turn on dataset check again
 # Add verbose for batch printing
 # Adapt learning rate
