@@ -3,20 +3,27 @@ import torch
 class RegressionRunningScore():
     def __init__(self, length):
         self.length = length
+        self.mse = []
         self.rmse = []
         self.mae = []
+        self.running_mse = 0.0
         self.running_rmse = 0.0
         self.running_mae = 0.0
 
-    def update(self, pred, target, mse):
+    def update(self, mse, pred, target):
         rmse = torch.sqrt(mse)
         mae = torch.mean(torch.abs(pred - target))
+        self.running_mse += mse.cpu().item()
         self.running_rmse += rmse.cpu().item()
         self.running_mae += mae.cpu().item()
 
-    def reset(self):
+    def epoch_finished(self):
+        self.mse.append(self.running_mse/self.length)
         self.rmse.append(self.running_rmse/self.length)
         self.mae.append(self.running_mae/self.length)
+
+    def reset(self):
+        self.running_mse = 0.0
         self.running_rmse = 0.0
         self.running_mae = 0.0
 
@@ -29,7 +36,10 @@ class RegressionRunningScore():
         return batch_mae.cpu().item()
 
     def get_metrics_list(self):
-        return self.rmse, self.mae
+        return self.mse, self.rmse, self.mae
+    
+    def get_epoch_mse(self, epoch):
+        return self.mse[epoch]
     
     def get_epoch_rmse(self, epoch):
         return self.rmse[epoch]

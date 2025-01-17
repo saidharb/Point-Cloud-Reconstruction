@@ -86,17 +86,16 @@ def main(args):
     # Training
     print("### Training starts ###\n", flush=True)
     for epoch in range(0, args.max_epoch):
-        train_running_loss = 0.0
         classifier = classifier.train()
         print(f"Training Epoch {epoch + 1}/{args.max_epoch}")
 
         for i, (pc, latent_rep) in enumerate(train_dataloader):
             optimizer.zero_grad()
 
-            pc = pc.data.numpy()
-            pc = provider.random_point_dropout(pc)
-            pc[:, :, 0:3] = provider.random_scale_point_cloud(pc[:, :, 0:3])
-            pc[:, :, 0:3] = provider.shift_point_cloud(pc[:, :, 0:3])
+            # pc = pc.data.numpy()
+            # pc = provider.random_point_dropout(pc)
+            # pc[:, :, 0:3] = provider.random_scale_point_cloud(pc[:, :, 0:3])
+            # pc[:, :, 0:3] = provider.shift_point_cloud(pc[:, :, 0:3])
             pc = torch.Tensor(pc)
             pc = pc.transpose(2, 1) # [B, C, N]
 
@@ -105,8 +104,7 @@ def main(args):
             loss_train = criterion(pred, latent_rep)
 
             # Metrics
-            train_running_loss += loss_train.cpu().item()
-            scores_train.update(pred, latent_rep, loss_train)
+            scores_train.update(loss_train.detach(), pred, latent_rep)
 
             loss_train.backward()
             optimizer.step()
@@ -116,16 +114,18 @@ def main(args):
                   f"RMSE: {scores_train.get_batch_rmse(loss_train):.8f} --- "
                   f"MAE: {scores_train.get_batch_mae(pred, latent_rep):.8f}")
 
-
             if i == 2:
                 break
+
+        scores_train.epoch_finished()
+        print(f"Training epoch {epoch + 1} finished --- "
+              f"Avg. Loss/MSE: {scores_train.get_epoch_mse(epoch):.8f} --- "
+              f"Avg. RMSE: {scores_train.get_epoch_rmse(epoch):.8f} "
+              f"--- Avg. MAE: {scores_train.get_epoch_mae(epoch):.8f}\n")
         scores_train.reset()
-        train_loss = train_running_loss/len(train_dataloader)
-        print(f"Training epoch {epoch + 1} finished --- Avg. Loss/MSE: {train_loss:.8f} --- Avg. RMSE: {scores_train.get_epoch_rmse(epoch):.8f} --- Avg. MAE: {scores_train.get_epoch_mae(epoch):.8f}")
 
         # Evaluation
         classifier.eval()
-        val_running_loss = 0.0
 
         with torch.no_grad():
             print(f"Validation Epoch {epoch + 1}/{args.max_epoch}")
@@ -137,8 +137,7 @@ def main(args):
                 loss_val = criterion(pred,latent_rep)
 
                 # Metrics
-                val_running_loss += loss_val.cpu().item()
-                scores_val.update(pred, latent_rep, loss_val)
+                scores_val.update(loss_val.detach(), pred, latent_rep)
                 
                 print(f"Val Batch {j + 1}/{len(val_dataloader)}: "
                       f"Loss: {loss_val.cpu().item():.8f} --- "
@@ -147,12 +146,19 @@ def main(args):
 
                 if j == 2:
                     break
-        val_loss = val_running_loss/len(val_dataloader)
-        best_model_tracker.update(val_loss, epoch, classifier)
+        
+        scores_val.epoch_finished()
+        print(f"Validation epoch {epoch + 1} finished --- "
+              f"Avg. Loss/MSE: {scores_val.get_epoch_mse(epoch):.8f} --- "
+              f"Avg. RMSE: {scores_val.get_epoch_rmse(epoch):.8f} --- "
+              f"Avg. MAE: {scores_val.get_epoch_mae(epoch):.8f}\n")
+        scores_val.reset()
+        
+        best_model_tracker.update(scores_val.get_epoch_mse(epoch), epoch, classifier)
 
 
         print("")
-        scores_val.reset()
+        
         scheduler.step()
 
 
@@ -175,8 +181,7 @@ if __name__ == '__main__':
 # To run the script execute before from root: export PYTHONPATH=$(pwd):$PYTHONPATH 
 
 # TODO: 
-# Epoch summary train prüfen!
-# Add MSE to metric class, validation epoch summary
+
 # Saving best model -> with timestamp and hyperparams! mit best und latest speichern oder save interval?
 # Model checkpoints
 # logging (wandb)
@@ -191,6 +196,8 @@ if __name__ == '__main__':
 # Turn on dataset check again
 # Add verbose for batch printing
 # Adapt learning rate
+# turn on trainloader shuffle
+# turn on augmentation again
 
 # CHANGELOG pointnet 16.01.: removed softmax
 
