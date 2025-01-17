@@ -194,7 +194,6 @@ if __name__ == '__main__':
 
 # TODO: 
 
-# Saving best model -> hyperparams!
 # logging (wandb - metrics, learning rate)
 # create logging file, which is saved where the model is saved! (trainiing time,)
 # (, save path)
@@ -210,7 +209,7 @@ if __name__ == '__main__':
 # Add verbose for batch printing
 # Adapt learning rate
 # turn on trainloader shuffle
-# turn on augmentation again
+
 
 # CHANGELOG pointnet 16.01.: removed softmax
 
