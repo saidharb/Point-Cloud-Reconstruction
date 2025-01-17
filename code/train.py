@@ -2,6 +2,7 @@ import os
 import sys
 import argparse
 import importlib
+from pprint import pprint
 
 import torch
 from torch.utils.data import DataLoader
@@ -25,6 +26,8 @@ def parse_args():
                         help='data directory relative to root directory')
     parser.add_argument('--batch_size', type=int, default=24, help='batch size')
     parser.add_argument('--max_epoch', type=int, default=50, help='maximum number of epochs')
+    parser.add_argument('--save_interval', type=int, default=20, help='save interval for models')
+
     return parser.parse_args()
 
 def inplace_relu(m):
@@ -42,10 +45,9 @@ def main(args):
 
     # Print parameters
     print("### Parameters ###\n", flush=True)
-    print(f"Data directory: {DATA_DIR}", flush=True)
-    print(f"Batch size: {args.batch_size}", flush=True)
-    print(f"Maximum number of training epochs: {args.max_epoch}", flush=True)
-    print("--- DONE ---\n", flush=True)
+    for key, value in vars(args).items():
+        print(f"{key}: {value}", flush=True)
+    print("\n--- DONE ---\n", flush=True)
 
     # Load data
     train_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'train')
@@ -81,7 +83,7 @@ def main(args):
     scores_train = RegressionRunningScore(len(train_dataloader))
     scores_val = RegressionRunningScore(len(val_dataloader))
 
-    best_model_tracker = SaveBestModel()
+    best_model_tracker = SaveBestModel(args.save_interval)
     
     # Training
     print("### Training starts ###\n", flush=True)
@@ -182,8 +184,7 @@ if __name__ == '__main__':
 
 # TODO: 
 
-# Saving best model -> with timestamp and hyperparams! mit best und latest speichern oder save interval?
-# Model checkpoints
+# Saving best model -> hyperparams! mit 
 # logging (wandb)
 # train time
 # validation
