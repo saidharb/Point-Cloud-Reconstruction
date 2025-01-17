@@ -18,7 +18,10 @@ def parse_args():
         'Train PointNet++ to encode point clouds into the same latent space as DeepCAD '
         'does with CAD Sequences.'
     )
-    parser.add_argument('--data_root', type=str, default='data', help='data directory relative to root directory')
+    parser.add_argument('--data_root', 
+                        type=str, 
+                        default='data', 
+                        help='data directory relative to root directory')
     parser.add_argument('--batch_size', type=int, default=24, help='batch size')
     parser.add_argument('--max_epoch', type=int, default=50, help='maximum number of epochs')
     return parser.parse_args()
@@ -40,13 +43,14 @@ def main(args):
     print("### Parameters ###\n", flush=True)
     print(f"Data directory: {DATA_DIR}", flush=True)
     print(f"Batch size: {args.batch_size}", flush=True)
-    print("", flush=True)
+    print(f"Maximum number of training epochs: {args.max_epoch}", flush=True)
+    print("--- DONE ---\n", flush=True)
 
     # Load data
-    train_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'test') # CHANGE to train
-    train_dataloader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle = True)
+    train_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'train')
+    train_dataloader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle = False)
     val_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'validation')
-    val_dataloader = DataLoader(val_dataset, batch_size = args.batch_size, shuffle = True)
+    val_dataloader = DataLoader(val_dataset, batch_size = args.batch_size, shuffle = False)
 
     # Load model
     print("### Load PointNet++ ssg model ###\n", flush=True)
@@ -61,7 +65,7 @@ def main(args):
     print(f"Using device: {device}\n", flush=True)
     classifier = classifier.to(device)
     criterion = criterion.to(device)
-    print("--- DONE --- \n", flush=True)
+    print("--- DONE ---\n", flush=True)
 
     ## Optimizer
     optimizer = torch.optim.Adam(
@@ -105,9 +109,13 @@ def main(args):
             loss_train.backward()
             optimizer.step()
 
-            print(f"Batch {i}/{len(train_dataloader)}: Loss: {loss_train.cpu().item()} --- RMSE: {scores_train.get_batch_rmse(loss_train)} --- MAE: {scores_train.get_batch_mae(pred, latent_rep)}")
+            print(f"Batch {i + 1}/{len(train_dataloader)}: "
+                  f"Loss: {loss_train.cpu().item():.8f} --- "
+                  f"RMSE: {scores_train.get_batch_rmse(loss_train):.8f} --- "
+                  f"MAE: {scores_train.get_batch_mae(pred, latent_rep):.8f}")
 
-            if i == 2:
+
+            if i == 20:
                 break
         scores_train.reset()
         print("")
@@ -127,13 +135,19 @@ def main(args):
                 val_running_loss += loss_val.cpu().item()
                 scores_val.update(pred, latent_rep, loss_val)
                 
-                print(f"Val Batch {j}/{len(val_dataloader)}: Loss: {loss_val.cpu().item()} --- RMSE: {scores_val.get_batch_rmse(loss_val)} --- MAE: {scores_val.get_batch_mae(pred, latent_rep)}")
+                print(f"Val Batch {j + 1}/{len(val_dataloader)}: "
+                      f"Loss: {loss_val.cpu().item():.8f} --- "
+                      f"RMSE: {scores_val.get_batch_rmse(loss_val):.8f} --- "
+                      f"MAE: {scores_val.get_batch_mae(pred, latent_rep):.8f}")
+
                 if j == 2:
                     break
         
         print("")
         scores_val.reset()
         scheduler.step()
+    
+    print("--- DONE ---\n")
 
 if __name__ == '__main__':
     args = parse_args()
@@ -147,8 +161,7 @@ if __name__ == '__main__':
 # To run the script execute before from root: export PYTHONPATH=$(pwd):$PYTHONPATH 
 
 # TODO: 
-# Adapt learning rate
-# change back to train loader
+
 # Saving best model
 # Model checkpoints
 # logging (wandb)
@@ -158,6 +171,11 @@ if __name__ == '__main__':
 # early stopping
 # Remove seed
 # Remove breaks
+# Turn on augmentation again
+# write test.py
+# Turn on dataset check again
+# Add verbose for batch printing
+# Adapt learning rate
 
 # CHANGELOG pointnet 16.01.: removed softmax
 
