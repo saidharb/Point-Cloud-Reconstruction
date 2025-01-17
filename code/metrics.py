@@ -28,5 +28,11 @@ class RegressionRunningScore():
         batch_mae = torch.mean(torch.abs(pred - target))
         return batch_mae.cpu().item()
 
-    def get_metrics(self):
+    def get_metrics_list(self):
         return self.rmse, self.mae
+    
+    def get_epoch_rmse(self, epoch):
+        return self.rmse[epoch]
+    
+    def get_epoch_mae(self, epoch):
+        return self.mae[epoch]
