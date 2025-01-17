@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 import torch
 
@@ -7,7 +8,8 @@ class SaveBestModel():
     def __init__(self):
         self.best_val_loss = float('inf')
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        self.save_dir = os.path.join(script_dir, "..", "models", "trained_models")
+        data_and_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        self.save_dir = os.path.join(script_dir, "..", "models", "trained_models", data_and_time)
         self.best_model_path = os.path.join(self.save_dir, "best.pth")
         self.best_epoch = 0
 
