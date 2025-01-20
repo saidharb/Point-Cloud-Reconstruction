@@ -40,8 +40,9 @@ def inplace_relu(m):
         m.inplace=True
 
 def main(args):
+    data_and_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     print(f"### NEW TRAINING STARTED ###"
-          f"\n{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}\n", flush=True)
+          f"\n{data_and_time}\n", flush=True)
     start_time = time.time()
 
     # Find data directory
@@ -51,10 +52,20 @@ def main(args):
     else:
         DATA_DIR = os.path.abspath(args.data_root)
 
+    # Find experiment directory
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    save_dir = os.path.abspath(os.path.join(script_dir, "..", "models", "trained_models", data_and_time))
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+        print(f"Created model save directory at: {save_dir}\n", flush=True)
+    
+    # Logging
+    monitor = Logger(save_dir)
+    
     # Print parameters
-    print("### Parameters ###\n", flush=True)
+    monitor.log_and_print("### Parameters ###\n")
     for key, value in vars(args).items():
-        print(f"{key}: {value}", flush=True)
+        monitor.log_and_print(f"{key}: {value}")
     print("\n--- DONE ---\n", flush=True)
 
     config = {
@@ -83,7 +94,7 @@ def main(args):
     
     ## Cuda
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Using device: {device}\n", flush=True)
+    monitor.log_and_print(f"Using device: {device}\n")
     classifier = classifier.to(device)
     criterion = criterion.to(device)
     print("--- DONE ---\n", flush=True)
@@ -101,10 +112,8 @@ def main(args):
     scores_train = RegressionRunningScore(len(train_dataloader))
     scores_val = RegressionRunningScore(len(val_dataloader))
 
-    best_model_tracker = SaveBestModel(config)
+    best_model_tracker = SaveBestModel(config, save_dir)
     early_stopping = EarlyStopping(config)
-    monitor = Logger(best_model_tracker.save_dir)
-    monitor.log(str(config))
     
     # Training
     monitor.log_and_print("### Training starts ###\n")

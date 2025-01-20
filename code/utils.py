@@ -7,11 +7,9 @@ import torch
 
 class SaveBestModel():
 
-    def __init__(self, config):
+    def __init__(self, config, save_dir):
         self.best_val_loss = float('inf')
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        data_and_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        self.save_dir = os.path.join(script_dir, "..", "models", "trained_models", data_and_time)
+        self.save_dir = save_dir
         self.best_model_path = os.path.join(self.save_dir, "best.pth")
         self.current_epoch = 0
         self.best_epoch = 0
@@ -84,6 +82,8 @@ class Logger():
         file_handler = logging.FileHandler(os.path.abspath(os.path.join(save_dir, "info.log")))
         file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
         self.logger.addHandler(file_handler)
+        self.logger.info(f"### NEW TRAINING STARTED ###\n")
+        self.logger.info(f"Save directory: {save_dir}\n")
 
     def log_and_print(self, information):
         print(information, flush=True)
