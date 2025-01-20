@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from dataset import PointCloudEmbeddingDataset
 from models.Pointnet_Pointnet2_pytorch import provider
 from metrics import RegressionRunningScore
-from utils import SaveBestModel
+from utils import SaveBestModel, EarlyStopping
 
 torch.manual_seed(42)
         
@@ -27,6 +27,7 @@ def parse_args():
     parser.add_argument('--max_epochs', type=int, default=50, help='maximum number of epochs')
     parser.add_argument('--save_interval', type=int, default=20, help='save interval for models')
     parser.add_argument('--learning_rate', type=float, default=0.001, help="initial learning rate")
+    parser.add_argument('--early_stopping', type=int, default=20, help="abort training after this amount of epochs with no validation loss decrease")
 
     return parser.parse_args()
 
@@ -55,7 +56,8 @@ def main(args):
         'max_epochs': args.max_epochs,
         'optimizer': 'Adam',
         'model_type': 'pointnet2_cls_ssg',
-        'save_interval': args.save_interval
+        'save_interval': args.save_interval,
+        'early_stopping': args.early_stopping
     }
 
     # Load data
@@ -93,6 +95,7 @@ def main(args):
     scores_val = RegressionRunningScore(len(val_dataloader))
 
     best_model_tracker = SaveBestModel(config)
+    early_stopping = EarlyStopping(config)
     
     # Training
     print("### Training starts ###\n", flush=True)
@@ -166,18 +169,13 @@ def main(args):
         scores_val.reset()
         
         best_model_tracker.update(scores_val.get_epoch_mse(epoch), epoch, classifier)
+        if early_stopping.update(scores_val.get_epoch_mse(epoch)):
+            break
+        scheduler.step()
 
 
         print("")
         
-        scheduler.step()
-
-
-
-
-
-
-    
     print("--- DONE ---\n")
 
 if __name__ == '__main__':
@@ -195,12 +193,8 @@ if __name__ == '__main__':
 # TODO: 
 
 # logging (wandb - metrics, learning rate)
-# create logging file, which is saved where the model is saved! (trainiing time,)
-# (, save path)
+# create logging file, which is saved where the model is saved! (trainiing time, save path)
 # train time
-# validation
-# output during training
-# early stopping
 # Remove seed
 # Remove breaks
 # Turn on augmentation again

@@ -49,6 +49,28 @@ class SaveBestModel():
 
         self.current_epoch += 1
 
+class EarlyStopping():
+
+    def __init__(self, config):
+        self.max_epochs = config['early_stopping']
+        self.epoch = 0
+        self.best_loss = float('inf')
+        self.best_epoch = 0
+
+    def update(self, loss):
+        if loss < self.best_loss:
+            self.best_epoch = self.epoch
+            self.epochs = 0
+            self.best_loss = loss
+        else:
+            self.epochs += 1
+    
+        if self.epochs == self.max_epochs:
+            print(f"Early stopping: Validation loss did not decrease for {self.max_epochs} epochs "
+                  f"from {self.best_loss:.8f} since epoch {self.best_epoch + 1}.")
+            return True
+        return False
+
         
             
 
