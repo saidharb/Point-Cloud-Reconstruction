@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 import time
+import logging
 
 import torch
 
@@ -75,6 +76,22 @@ class EarlyStopping():
                   f"from {self.best_loss:.8f} since epoch {self.best_epoch + 1}.", flush=True)
             return True
         return False
+    
+class Logger():
+    def __init__(self, save_dir):
+        self.logger = logging.getLogger("Training")
+        self.logger.setLevel(logging.INFO)
+        file_handler = logging.FileHandler(os.path.abspath(os.path.join(save_dir, "info.log")))
+        file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+        self.logger.addHandler(file_handler)
+
+    def log_and_print(self, information):
+        print(information, flush=True)
+        self.logger.info(information)
+
+    def log(self, information):
+        self.logger.info(information)
+
 
         
             

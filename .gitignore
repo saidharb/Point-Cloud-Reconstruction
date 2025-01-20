@@ -21,3 +21,6 @@ __pycache__/
 
 # Models
 **/*.pth
+
+# Log files
+**/*.log

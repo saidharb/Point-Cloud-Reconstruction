@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from dataset import PointCloudEmbeddingDataset
 from models.Pointnet_Pointnet2_pytorch import provider
 from metrics import RegressionRunningScore
-from utils import SaveBestModel, EarlyStopping
+from utils import SaveBestModel, EarlyStopping, Logger
 
 torch.manual_seed(42)
         
@@ -103,9 +103,11 @@ def main(args):
 
     best_model_tracker = SaveBestModel(config)
     early_stopping = EarlyStopping(config)
+    monitor = Logger(best_model_tracker.save_dir)
+    monitor.log(str(config))
     
     # Training
-    print("### Training starts ###\n", flush=True)
+    monitor.log_and_print("### Training starts ###\n")
     for epoch in range(0, args.max_epochs):
         classifier = classifier.train()
         print(f"Training Epoch {epoch + 1}/{args.max_epochs}", flush=True)
@@ -139,7 +141,7 @@ def main(args):
                 break
 
         scores_train.epoch_finished()
-        print(f"Training epoch {epoch + 1} finished --- "
+        print(f"Training epoch {epoch + 1}/{args.max_epochs} finished --- "
               f"Avg. Loss/MSE: {scores_train.get_epoch_mse(epoch):.8f} --- "
               f"Avg. RMSE: {scores_train.get_epoch_rmse(epoch):.8f} "
               f"--- Avg. MAE: {scores_train.get_epoch_mae(epoch):.8f}\n", flush=True)
@@ -147,7 +149,6 @@ def main(args):
 
         # Evaluation
         classifier.eval()
-
         with torch.no_grad():
             print(f"Validation Epoch {epoch + 1}/{args.max_epochs}", flush=True)
 
@@ -169,23 +170,25 @@ def main(args):
                     break
         
         scores_val.epoch_finished()
-        print(f"Validation epoch {epoch + 1} finished --- "
+        print(f"Validation epoch {epoch + 1}/{args.max_epochs} finished --- "
               f"Avg. Loss/MSE: {scores_val.get_epoch_mse(epoch):.8f} --- "
               f"Avg. RMSE: {scores_val.get_epoch_rmse(epoch):.8f} --- "
               f"Avg. MAE: {scores_val.get_epoch_mae(epoch):.8f}\n", flush=True)
         scores_val.reset()
         
+        monitor.log(f"Epoch {epoch+1}/{args.max_epochs} --- "
+                    f"Train - MSE: {scores_train.get_epoch_mse(epoch):.8f} RMSE: {scores_train.get_epoch_rmse(epoch):.8f} MAE: {scores_train.get_epoch_mae(epoch):.8f} --- "
+                    f"Val - MSE: {scores_val.get_epoch_mse(epoch):.8f} RMSE: {scores_val.get_epoch_rmse(epoch):.8f} MAE: {scores_val.get_epoch_mae(epoch):.8f}")
         best_model_tracker.update(scores_val.get_epoch_mse(epoch), epoch, classifier)
+        scheduler.step()
         if early_stopping.update(scores_val.get_epoch_mse(epoch)):
             break
-        scheduler.step()
-
 
         print("", flush=True)
     
     minutes, seconds = divmod(time.time() - start_time, 60)
-    print(f"Training finished in {int(minutes)}:{int(seconds):02} minutes.\n"
-        f"--- DONE ---\n", flush=True)
+    monitor.log_and_print(f"Training time: {int(minutes)}:{int(seconds):02} minutes.\n"
+                          f"--- DONE ---\n")
 
 if __name__ == '__main__':
     args = parse_args()
@@ -202,8 +205,8 @@ if __name__ == '__main__':
 # TODO: 
 
 # logging (wandb - metrics, learning rate)
+# lgging should include when model is saved, etc -> move creation of save directory outside of model tracker
 # create logging file, which is saved where the model is saved! (trainiing time, save path)
-# train time
 # Remove seed
 # Remove breaks
 # Turn on augmentation again
