@@ -2,6 +2,9 @@ import os
 import sys
 import argparse
 import importlib
+from datetime import datetime
+import time
+import math
 
 import torch
 from torch.utils.data import DataLoader
@@ -37,6 +40,10 @@ def inplace_relu(m):
         m.inplace=True
 
 def main(args):
+    print(f"### NEW TRAINING STARTED ###"
+          f"\n{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}\n", flush=True)
+    start_time = time.time()
+
     # Find data directory
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     if os.getcwd() != root_dir:
@@ -101,7 +108,7 @@ def main(args):
     print("### Training starts ###\n", flush=True)
     for epoch in range(0, args.max_epochs):
         classifier = classifier.train()
-        print(f"Training Epoch {epoch + 1}/{args.max_epochs}")
+        print(f"Training Epoch {epoch + 1}/{args.max_epochs}", flush=True)
 
         for i, (pc, latent_rep) in enumerate(train_dataloader):
             optimizer.zero_grad()
@@ -126,7 +133,7 @@ def main(args):
             print(f"Batch {i + 1}/{len(train_dataloader)}: "
                   f"Loss: {loss_train.cpu().item():.8f} --- "
                   f"RMSE: {scores_train.get_batch_rmse(loss_train):.8f} --- "
-                  f"MAE: {scores_train.get_batch_mae(pred, latent_rep):.8f}")
+                  f"MAE: {scores_train.get_batch_mae(pred, latent_rep):.8f}", flush=True)
 
             if i == 2:
                 break
@@ -135,14 +142,14 @@ def main(args):
         print(f"Training epoch {epoch + 1} finished --- "
               f"Avg. Loss/MSE: {scores_train.get_epoch_mse(epoch):.8f} --- "
               f"Avg. RMSE: {scores_train.get_epoch_rmse(epoch):.8f} "
-              f"--- Avg. MAE: {scores_train.get_epoch_mae(epoch):.8f}\n")
+              f"--- Avg. MAE: {scores_train.get_epoch_mae(epoch):.8f}\n", flush=True)
         scores_train.reset()
 
         # Evaluation
         classifier.eval()
 
         with torch.no_grad():
-            print(f"Validation Epoch {epoch + 1}/{args.max_epochs}")
+            print(f"Validation Epoch {epoch + 1}/{args.max_epochs}", flush=True)
 
             for j, (pc, latent_rep) in enumerate(val_dataloader):
                 pc, latent_rep = pc.to(device), latent_rep.to(device)
@@ -156,7 +163,7 @@ def main(args):
                 print(f"Val Batch {j + 1}/{len(val_dataloader)}: "
                       f"Loss: {loss_val.cpu().item():.8f} --- "
                       f"RMSE: {scores_val.get_batch_rmse(loss_val):.8f} --- "
-                      f"MAE: {scores_val.get_batch_mae(pred, latent_rep):.8f}")
+                      f"MAE: {scores_val.get_batch_mae(pred, latent_rep):.8f}", flush=True)
 
                 if j == 2:
                     break
@@ -165,7 +172,7 @@ def main(args):
         print(f"Validation epoch {epoch + 1} finished --- "
               f"Avg. Loss/MSE: {scores_val.get_epoch_mse(epoch):.8f} --- "
               f"Avg. RMSE: {scores_val.get_epoch_rmse(epoch):.8f} --- "
-              f"Avg. MAE: {scores_val.get_epoch_mae(epoch):.8f}\n")
+              f"Avg. MAE: {scores_val.get_epoch_mae(epoch):.8f}\n", flush=True)
         scores_val.reset()
         
         best_model_tracker.update(scores_val.get_epoch_mse(epoch), epoch, classifier)
@@ -174,9 +181,11 @@ def main(args):
         scheduler.step()
 
 
-        print("")
-        
-    print("--- DONE ---\n")
+        print("", flush=True)
+    
+    minutes, seconds = divmod(time.time() - start_time, 60)
+    print(f"Training finished in {int(minutes)}:{int(seconds):02} minutes.\n"
+        f"--- DONE ---\n", flush=True)
 
 if __name__ == '__main__':
     args = parse_args()
