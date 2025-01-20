@@ -8,6 +8,7 @@ import math
 
 import torch
 from torch.utils.data import DataLoader
+import wandb
 
 from dataset import PointCloudEmbeddingDataset
 from models.Pointnet_Pointnet2_pytorch import provider
@@ -30,8 +31,12 @@ def parse_args():
     parser.add_argument('--max_epochs', type=int, default=50, help='maximum number of epochs')
     parser.add_argument('--save_interval', type=int, default=20, help='save interval for models')
     parser.add_argument('--learning_rate', type=float, default=0.001, help="initial learning rate")
-    parser.add_argument('--early_stopping', type=int, default=20, help="abort training after this amount of epochs with no validation loss decrease")
-
+    parser.add_argument('--early_stopping', 
+                        type=int, 
+                        default=20, 
+                        help="abort training after this amount of epochs with no validation loss decrease")
+    parser.add_argument('--verbose', action='store_true', default=False, help='output per batch metrics')
+    parser.add_argument('--wandb', action='store_true', default=False, help='enable WandB tracking')
     return parser.parse_args()
 
 def inplace_relu(m):
@@ -40,6 +45,7 @@ def inplace_relu(m):
         m.inplace=True
 
 def main(args):
+
     data_and_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     print(f"### NEW TRAINING STARTED ###"
           f"\n{data_and_time}\n", flush=True)
@@ -57,8 +63,7 @@ def main(args):
     save_dir = os.path.abspath(os.path.join(script_dir, "..", "models", "trained_models", data_and_time))
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-        print(f"Created model save directory at: {save_dir}\n", flush=True)
-    
+        print(f"Created model save directory at: {os.path.abspath(save_dir)}\n")
     # Logging
     monitor = Logger(save_dir)
     
@@ -75,14 +80,27 @@ def main(args):
         'optimizer': 'Adam',
         'model_type': 'pointnet2_cls_ssg',
         'save_interval': args.save_interval,
-        'early_stopping': args.early_stopping
+        'early_stopping': args.early_stopping,
+        'start_time': data_and_time
     }
+    
+    if args.wandb:
+        print("### WANDB ###\n", flush=True)
+        if os.getenv("WANDB_API_KEY"):
+            print("Logging into WandB...\n", flush=True)
+            wandb.login(key=os.getenv("WANDB_API_KEY"))
+            wandb.init(project = 'Master Thesis',
+                        name = 'Test run 3',
+                        config = config)
+        else:
+            print("No WandB API key provided, WandB is disabled.\n", flush=True)
 
     # Load data
     train_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'train')
     train_dataloader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle = False)
     val_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'validation')
     val_dataloader = DataLoader(val_dataset, batch_size = args.batch_size, shuffle = False)
+    monitor.log(f"Train set: {len(train_dataloader)}, Validation set: {len(val_dataloader)}")
 
     # Load model
     print("### Load PointNet++ ssg model ###\n", flush=True)
@@ -107,19 +125,24 @@ def main(args):
         eps=1e-08,
         weight_decay=1e-4
         )
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.7)
+
+    last_lr = args.learning_rate
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 
+                                                           mode = 'min', 
+                                                           factor = 0.5, 
+                                                           patience = 20)
 
     scores_train = RegressionRunningScore(len(train_dataloader))
     scores_val = RegressionRunningScore(len(val_dataloader))
 
-    best_model_tracker = SaveBestModel(config, save_dir)
-    early_stopping = EarlyStopping(config)
+    best_model_tracker = SaveBestModel(config, save_dir, monitor)
+    early_stopping = EarlyStopping(config, monitor)
     
     # Training
     monitor.log_and_print("### Training starts ###\n")
     for epoch in range(0, args.max_epochs):
         classifier = classifier.train()
-        print(f"Training Epoch {epoch + 1}/{args.max_epochs}", flush=True)
+        print(f"Epoch {epoch + 1}/{args.max_epochs}", flush=True)
 
         for i, (pc, latent_rep) in enumerate(train_dataloader):
             optimizer.zero_grad()
@@ -141,25 +164,27 @@ def main(args):
             loss_train.backward()
             optimizer.step()
 
-            print(f"Batch {i + 1}/{len(train_dataloader)}: "
-                  f"Loss: {loss_train.cpu().item():.8f} --- "
-                  f"RMSE: {scores_train.get_batch_rmse(loss_train):.8f} --- "
-                  f"MAE: {scores_train.get_batch_mae(pred, latent_rep):.8f}", flush=True)
+            if args.verbose:
+                print(f"Batch {i + 1}/{len(train_dataloader)}: "
+                    f"Loss: {loss_train.cpu().item():.8f} --- "
+                    f"RMSE: {scores_train.get_batch_rmse(loss_train):.8f} --- "
+                    f"MAE: {scores_train.get_batch_mae(pred, latent_rep):.8f}", flush=True)
 
             if i == 2:
                 break
 
         scores_train.epoch_finished()
-        print(f"Training epoch {epoch + 1}/{args.max_epochs} finished --- "
+
+        print(f"{'Training':<10} --- "
               f"Avg. Loss/MSE: {scores_train.get_epoch_mse(epoch):.8f} --- "
               f"Avg. RMSE: {scores_train.get_epoch_rmse(epoch):.8f} "
-              f"--- Avg. MAE: {scores_train.get_epoch_mae(epoch):.8f}\n", flush=True)
+              f"--- Avg. MAE: {scores_train.get_epoch_mae(epoch):.8f}", flush=True)
         scores_train.reset()
 
         # Evaluation
         classifier.eval()
         with torch.no_grad():
-            print(f"Validation Epoch {epoch + 1}/{args.max_epochs}", flush=True)
+        #    print(f"Validation Epoch {epoch + 1}/{args.max_epochs}", flush=True)
 
             for j, (pc, latent_rep) in enumerate(val_dataloader):
                 pc, latent_rep = pc.to(device), latent_rep.to(device)
@@ -170,29 +195,46 @@ def main(args):
                 # Metrics
                 scores_val.update(loss_val.detach(), pred, latent_rep)
                 
-                print(f"Val Batch {j + 1}/{len(val_dataloader)}: "
-                      f"Loss: {loss_val.cpu().item():.8f} --- "
-                      f"RMSE: {scores_val.get_batch_rmse(loss_val):.8f} --- "
-                      f"MAE: {scores_val.get_batch_mae(pred, latent_rep):.8f}", flush=True)
+                if args.verbose:
+                    print(f"Val Batch {j + 1}/{len(val_dataloader)}: "
+                        f"Loss: {loss_val.cpu().item():.8f} --- "
+                        f"RMSE: {scores_val.get_batch_rmse(loss_val):.8f} --- "
+                        f"MAE: {scores_val.get_batch_mae(pred, latent_rep):.8f}", flush=True)
 
                 if j == 2:
                     break
         
         scores_val.epoch_finished()
-        print(f"Validation epoch {epoch + 1}/{args.max_epochs} finished --- "
+        print(f"Validation --- "
               f"Avg. Loss/MSE: {scores_val.get_epoch_mse(epoch):.8f} --- "
               f"Avg. RMSE: {scores_val.get_epoch_rmse(epoch):.8f} --- "
-              f"Avg. MAE: {scores_val.get_epoch_mae(epoch):.8f}\n", flush=True)
+              f"Avg. MAE: {scores_val.get_epoch_mae(epoch):.8f}", flush=True)
         scores_val.reset()
+
+        current_lr = scheduler.get_last_lr()[0]
+        if current_lr != last_lr:
+            monitor.log_and_print(f"Learning rate adjusted from {last_lr} to {current_lr} in this epoch.")
+            last_lr = current_lr
+
+        if args.wandb:
+            if os.getenv("WANDB_API_KEY"):
+                wandb.log({'epochs': epoch, 
+                        'learning_rate': current_lr,
+                        'train_loss': scores_train.get_epoch_mse(epoch),
+                        'train_rmse': scores_train.get_epoch_rmse(epoch),
+                        'train_mae': scores_train.get_epoch_mae(epoch),
+                        'val_loss': scores_val.get_epoch_mse(epoch),
+                        'val_rmse': scores_val.get_epoch_rmse(epoch),
+                        'val_mae': scores_val.get_epoch_mae(epoch)})
         
         monitor.log(f"Epoch {epoch+1}/{args.max_epochs} --- "
                     f"Train - MSE: {scores_train.get_epoch_mse(epoch):.8f} RMSE: {scores_train.get_epoch_rmse(epoch):.8f} MAE: {scores_train.get_epoch_mae(epoch):.8f} --- "
                     f"Val - MSE: {scores_val.get_epoch_mse(epoch):.8f} RMSE: {scores_val.get_epoch_rmse(epoch):.8f} MAE: {scores_val.get_epoch_mae(epoch):.8f}")
         best_model_tracker.update(scores_val.get_epoch_mse(epoch), epoch, classifier)
-        scheduler.step()
         if early_stopping.update(scores_val.get_epoch_mse(epoch)):
             break
 
+        scheduler.step(scores_val.get_epoch_mse(epoch))
         print("", flush=True)
     
     minutes, seconds = divmod(time.time() - start_time, 60)
@@ -210,23 +252,19 @@ if __name__ == '__main__':
 # Give the data directory always relative to root (makes it easier)
 # To run the script execute before from root: export PYTHONPATH=$(pwd):$PYTHONPATH 
 # no gpu necessary, adapts dynamically
+# For wandb logging: export WANDB_API_KEY="..."
 
 # TODO: 
 
 # logging (wandb - metrics, learning rate)
-# lgging should include when model is saved, etc -> move creation of save directory outside of model tracker
-# create logging file, which is saved where the model is saved! (trainiing time, save path)
+# Save all metrics in a csv file
 # Remove seed
 # Remove breaks
 # Turn on augmentation again
 # write test.py (with log file at same save dir as model)
 # Turn on dataset check again
-# Add verbose for batch printing
-# Adapt learning rate
+# Adapt learning rate + save it correctly
 # turn on trainloader shuffle
-
 
 # CHANGELOG pointnet 16.01.: removed softmax
 
-# NEXT
-# Karpathy workflow
