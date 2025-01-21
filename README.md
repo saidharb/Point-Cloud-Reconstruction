@@ -57,7 +57,7 @@ $ python code/train.py
 | `--wandb`          | `bool`  | `False`      | Enable WandB tracking                                                      |
 | `--name`           | `str`   | `'test_run'` | Name of WandB run                                                          |
 
-The training script will create a directory `models/trained_models` where all training runs are saved including the best model, checkpoint models, logging information and a csv files containing the metrics. The learning rate will be halfed, if the validation loss did not decrease for the number of epochs specified in `lr_patience`.
+The training script will create a directory `models/trained_models` where all training runs are saved including the best model, checkpoint models, logging information and a csv file containing the metrics. The learning rate will be halfed, if the validation loss did not decrease for the number of epochs specified in `lr_patience`.
 
 ## Other
 ### Experimental notebooks
