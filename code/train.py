@@ -16,7 +16,7 @@ from models.Pointnet_Pointnet2_pytorch import provider
 from metrics import RegressionRunningScore
 from utils import SaveBestModel, EarlyStopping, Logger
 
-torch.manual_seed(42)
+# torch.manual_seed(42)
         
 def parse_args():
     '''PARAMETERS'''
@@ -108,7 +108,7 @@ def main(args):
 
     # Load data
     train_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'train')
-    train_dataloader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle = False)
+    train_dataloader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle = True)
     val_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'validation')
     val_dataloader = DataLoader(val_dataset, batch_size = args.batch_size, shuffle = False)
     monitor.log(f"Train set: {len(train_dataloader)}, Validation set: {len(val_dataloader)}")
@@ -160,10 +160,10 @@ def main(args):
         for i, (pc, latent_rep) in enumerate(train_dataloader):
             optimizer.zero_grad()
 
-            # pc = pc.data.numpy()
-            # pc = provider.random_point_dropout(pc)
-            # pc[:, :, 0:3] = provider.random_scale_point_cloud(pc[:, :, 0:3])
-            # pc[:, :, 0:3] = provider.shift_point_cloud(pc[:, :, 0:3])
+            pc = pc.data.numpy()
+            pc = provider.random_point_dropout(pc)
+            pc[:, :, 0:3] = provider.random_scale_point_cloud(pc[:, :, 0:3])
+            pc[:, :, 0:3] = provider.shift_point_cloud(pc[:, :, 0:3])
             pc = torch.Tensor(pc)
             pc = pc.transpose(2, 1) # [B, C, N]
 
@@ -183,8 +183,8 @@ def main(args):
                     f"RMSE: {scores_train.get_batch_rmse(loss_train):.8f} --- "
                     f"MAE: {scores_train.get_batch_mae(pred, latent_rep):.8f}", flush=True)
 
-            if i == 2:
-                break
+            # if i == 2:
+            #     break
 
         scores_train.epoch_finished()
 
@@ -212,8 +212,8 @@ def main(args):
                         f"RMSE: {scores_val.get_batch_rmse(loss_val):.8f} --- "
                         f"MAE: {scores_val.get_batch_mae(pred, latent_rep):.8f}", flush=True)
 
-                if j == 2:
-                    break
+                # if j == 2:
+                #     break
         
         scores_val.epoch_finished()
         print(f"Validation --- "
@@ -272,18 +272,9 @@ if __name__ == '__main__':
 # To run the script execute before from root: export PYTHONPATH=$(pwd):$PYTHONPATH 
 # no gpu necessary, adapts dynamically
 # For wandb logging: export WANDB_API_KEY="..."
+# show command line arguments
 
 # CHANGELOG pointnet 16.01.: removed softmax
-
-# TODO: 
-
-# Save all metrics in a csv file (train-, val-metrics, learning rate, epoch)
-# Eventually modify metrics tracker class for that (save method, track learning rate here)
-# Remove seed
-# Remove breaks
-# Turn on augmentation again
-# Turn on dataset check again
-# turn on trainloader shuffle
 
 # NEXT:
 # - Tune learning rate hyperparameter (look at convergence of loss for that)

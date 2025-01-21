@@ -27,7 +27,7 @@ class PointCloudEmbeddingDataset(Dataset):
         self.all_files = set(glob(f"{self.pc_path}/{file_pattern}", recursive=True))
         pc_all = self.read_split()
         self.pc, self.corrupt_idx = self.filter_pc(pc_all)
-        # assert(self.check_valid_pc(self.pc))
+        assert(self.check_valid_pc(self.pc))
 
         # Latent Representations
         with h5py.File(self.latent_path, 'r') as f:
