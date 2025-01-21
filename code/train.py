@@ -5,6 +5,7 @@ import importlib
 from datetime import datetime
 import time
 import math
+import csv
 
 import torch
 from torch.utils.data import DataLoader
@@ -37,12 +38,22 @@ def parse_args():
                         help="abort training after this amount of epochs with no validation loss decrease")
     parser.add_argument('--verbose', action='store_true', default=False, help='output per batch metrics')
     parser.add_argument('--wandb', action='store_true', default=False, help='enable WandB tracking')
+    parser.add_argument('--name', type=str, default="test_run", help="name of WandB run")
     return parser.parse_args()
 
 def inplace_relu(m):
     classname = m.__class__.__name__
     if classname.find('ReLU') != -1:
         m.inplace=True
+
+def save_metrics(*lists, save_path = "", epoch = 1):
+    epochs = list(range(1, epoch + 2))
+    headers = ['epoch', 'learning_rate', 'train_mse', 'train_rmse', 'train_mae', 'val_mse', 'val_rmse', 'val_mae']
+    with open(os.path.join(save_path, 'metrics.csv'), mode='w', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerow(headers)
+        for row in zip(epochs, *lists):
+            writer.writerow(row)
 
 def main(args):
 
@@ -90,7 +101,7 @@ def main(args):
             print("Logging into WandB...\n", flush=True)
             wandb.login(key=os.getenv("WANDB_API_KEY"))
             wandb.init(project = 'Master Thesis',
-                        name = 'Test run 3',
+                        name = args.name,
                         config = config)
         else:
             print("No WandB API key provided, WandB is disabled.\n", flush=True)
@@ -130,13 +141,15 @@ def main(args):
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 
                                                            mode = 'min', 
                                                            factor = 0.5, 
-                                                           patience = 20)
+                                                           patience = 15)
 
     scores_train = RegressionRunningScore(len(train_dataloader))
     scores_val = RegressionRunningScore(len(val_dataloader))
 
     best_model_tracker = SaveBestModel(config, save_dir, monitor)
     early_stopping = EarlyStopping(config, monitor)
+
+    learning_rates = []
     
     # Training
     monitor.log_and_print("### Training starts ###\n")
@@ -184,8 +197,6 @@ def main(args):
         # Evaluation
         classifier.eval()
         with torch.no_grad():
-        #    print(f"Validation Epoch {epoch + 1}/{args.max_epochs}", flush=True)
-
             for j, (pc, latent_rep) in enumerate(val_dataloader):
                 pc, latent_rep = pc.to(device), latent_rep.to(device)
                 pc = pc.transpose(2, 1)
@@ -212,8 +223,9 @@ def main(args):
         scores_val.reset()
 
         current_lr = scheduler.get_last_lr()[0]
+        learning_rates.append(current_lr)
         if current_lr != last_lr:
-            monitor.log_and_print(f"Learning rate adjusted from {last_lr} to {current_lr} in this epoch.")
+            monitor.log_and_print(f"Learning rate was adjusted from {last_lr} to {current_lr} in this epoch.")
             last_lr = current_lr
 
         if args.wandb:
@@ -231,6 +243,13 @@ def main(args):
                     f"Train - MSE: {scores_train.get_epoch_mse(epoch):.8f} RMSE: {scores_train.get_epoch_rmse(epoch):.8f} MAE: {scores_train.get_epoch_mae(epoch):.8f} --- "
                     f"Val - MSE: {scores_val.get_epoch_mse(epoch):.8f} RMSE: {scores_val.get_epoch_rmse(epoch):.8f} MAE: {scores_val.get_epoch_mae(epoch):.8f}")
         best_model_tracker.update(scores_val.get_epoch_mse(epoch), epoch, classifier)
+
+        save_metrics(learning_rates, 
+                     *scores_train.get_metrics_list(), 
+                     *scores_val.get_metrics_list(),
+                     save_path = save_dir,
+                     epoch = epoch)
+
         if early_stopping.update(scores_val.get_epoch_mse(epoch)):
             break
 
@@ -254,17 +273,19 @@ if __name__ == '__main__':
 # no gpu necessary, adapts dynamically
 # For wandb logging: export WANDB_API_KEY="..."
 
+# CHANGELOG pointnet 16.01.: removed softmax
+
 # TODO: 
 
-# logging (wandb - metrics, learning rate)
-# Save all metrics in a csv file
+# Save all metrics in a csv file (train-, val-metrics, learning rate, epoch)
+# Eventually modify metrics tracker class for that (save method, track learning rate here)
 # Remove seed
 # Remove breaks
 # Turn on augmentation again
-# write test.py (with log file at same save dir as model)
 # Turn on dataset check again
-# Adapt learning rate + save it correctly
 # turn on trainloader shuffle
 
-# CHANGELOG pointnet 16.01.: removed softmax
+# NEXT:
+# - Tune learning rate hyperparameter (look at convergence of loss for that)
+# - write test.py (with log file at same save dir as model)
 
