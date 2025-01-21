@@ -39,6 +39,7 @@ def parse_args():
     parser.add_argument('--verbose', action='store_true', default=False, help='output per batch metrics')
     parser.add_argument('--wandb', action='store_true', default=False, help='enable WandB tracking')
     parser.add_argument('--name', type=str, default="test_run", help="name of WandB run")
+    parser.add_argument('--lr_patience', type=int, default=15, help="patience in epochs for learning rate decay")
     return parser.parse_args()
 
 def inplace_relu(m):
@@ -141,7 +142,7 @@ def main(args):
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 
                                                            mode = 'min', 
                                                            factor = 0.5, 
-                                                           patience = 15)
+                                                           patience = args.lr_patience)
 
     scores_train = RegressionRunningScore(len(train_dataloader))
     scores_val = RegressionRunningScore(len(val_dataloader))
@@ -264,19 +265,9 @@ if __name__ == '__main__':
     args = parse_args()
     main(args)
 
-    
-
-# For README:
-# Execute train.py either from root or from ./code
-# Give the data directory always relative to root (makes it easier)
-# To run the script execute before from root: export PYTHONPATH=$(pwd):$PYTHONPATH 
-# no gpu necessary, adapts dynamically
-# For wandb logging: export WANDB_API_KEY="..."
-# show command line arguments
-
-# CHANGELOG pointnet 16.01.: removed softmax
 
 # NEXT:
 # - Tune learning rate hyperparameter (look at convergence of loss for that)
 # - write test.py (with log file at same save dir as model)
-
+# - maybe use msg model?
+# maybe train DeepCAD myself?
