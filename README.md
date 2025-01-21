@@ -4,7 +4,7 @@ GitHub repository for my Masters Thesis
 The goal of this project is to predict CAD sequences from input point clouds. 
 
 ## DeepCAD
-The DeepCAD model from the [DeepCAD: A Deep Generative Network for Computer-Aided Design Models](https://arxiv.org/abs/2105.09492) ICCV 2021 by Wu et al. will serve in two purposes: First as an encoder for CAD sequences and second as the decoder for the point cloud latent representations.
+The DeepCAD model from the [DeepCAD: A Deep Generative Network for Computer-Aided Design Models](https://arxiv.org/abs/2105.09492) ICCV 2021 by Wu et al. will serve in two purposes: First as an encoder for CAD sequences and second as the decoder for the point cloud latent representations. For the purpose of this project the original code will be modified (cf. [CHANGELOG.md](https://github.com/saidharb/Point-Cloud-Reconstruction/blob/main/models/DeepCAD/CHANGELOG.md)).
 
 ### Data
 First you can download the data from the [DeepCAD dataset](http://www.cs.columbia.edu/cg/deepcad/data.tar) and extract it in the `data` folder in the main directory.
@@ -28,9 +28,40 @@ $ python test.py --proj_dir "../../data/latent" --exp_name "pretrained" --mode "
 ```
 The pretrained model will encode the CAD sequences and save the results in the `data/latent/pretrained/results` directory.
 
+## PointNet++
+Until this point, the CAD-sequence dataset is downloaded, the CAD-sequences are converted to point clouds and the CAD-sequences are encoded into the latent space by the DeepCAD model. The next step is to train the PointNet++ model in a regression task on the point clouds with the latent representation of the CAD-sequences as targets. PointNet++ is from the paper [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413) NIPS 2017 by Qi et al. and for this project the [PyTorch version](https://github.com/yanx27/Pointnet_Pointnet2_pytorch) will be used and modified (cf. [CHANGELOG.md](https://github.com/saidharb/Point-Cloud-Reconstruction/blob/main/models/Pointnet_Pointnet2_pytorch/CHANGELOG.md)). 
+
+### Train PointNet++
+In order to train PointNet++ a training script is developed, which will dynamically adapt to CPU or GPU. Before executing the training scrip two environment variables have to be set, in particular the `PYTHONPATH` and the `WANDB_API_KEY`, if training should be tracked using Weight and Biases. The API key can be obtained from your user account at WandB. Set the environment variables from the root repository like this:
+
+```bash
+$ export PYTHONPATH=$(pwd):$PYTHONPATH
+$ export WANDB_API_KEY=<WandB API key>
+```
+**Note**: Always set the PYTHONPATH variable when starting a new session.
+
+Then the training script can be executed from the root repository. Note the command line arguments listed below to modify training.
+```bash
+$ python code/train.py
+```
+| Argument           | Type    | Default      | Description                                                                 |
+|--------------------|---------|--------------|-----------------------------------------------------------------------------|
+| `--data_root`      | `str`   | `'data'`     | Data directory relative to root directory                                   |
+| `--batch_size`     | `int`   | `24`         | Batch size                                                                 |
+| `--max_epochs`     | `int`   | `50`         | Maximum number of epochs                                                   |
+| `--save_interval`  | `int`   | `20`         | Save interval for models                                                   |
+| `--learning_rate`  | `float` | `0.001`      | Initial learning rate                                                      |
+| `--lr_patience`    | `int`   | `15`         | Patience in epochs for learning rate decay                                 |
+| `--early_stopping` | `int`   | `20`         | Abort training after this number of epochs with no validation loss decrease|
+| `--verbose`        | `bool`  | `False`      | Output per batch metrics                                                   |
+| `--wandb`          | `bool`  | `False`      | Enable WandB tracking                                                      |
+| `--name`           | `str`   | `'test_run'` | Name of WandB run                                                          |
+
+The training script will create a directory `models/trained_models` where all training runs are saved including the best model, checkpoint models, logging information and a csv files containing the metrics.
+
 ## Other
 ### Experimental notebooks
-In the code directory you can find two experimental jupyter notebooks, which I use to explore and test out the DeepCAD and PointNet model.
+In the code directory you can find three experimental jupyter notebooks, which I use to explore and test out scripts and models.
 
 ### Report
 In the report directory you can find the slides for my literature research. The whole repository is still work in progress.
