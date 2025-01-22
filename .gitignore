@@ -30,3 +30,6 @@ wandb/
 
 # CSV-files
 **/*.csv
+
+# Virtual environments
+pointnet_venv/

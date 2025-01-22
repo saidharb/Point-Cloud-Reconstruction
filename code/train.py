@@ -266,7 +266,6 @@ if __name__ == '__main__':
     main(args)
 
 # CLUSTER
-# - Always delete on cluster and copy from disk the code folder, never change anything 
 # in the cluster -> diverging branches
 # Recreate venv and put it on readme
 
