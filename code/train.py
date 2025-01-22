@@ -4,7 +4,6 @@ import argparse
 import importlib
 from datetime import datetime
 import time
-import math
 import csv
 
 import torch
