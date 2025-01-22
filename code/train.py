@@ -265,9 +265,15 @@ if __name__ == '__main__':
     args = parse_args()
     main(args)
 
+# CLUSTER
+# - Always delete on cluster and copy from disk the code folder, never change anything 
+# in the cluster -> diverging branches
+# Recreate venv and put it on readme
 
 # NEXT:
+# maybe log how much data is on disk?
 # - Tune learning rate hyperparameter (look at convergence of loss for that)
 # - write test.py (with log file at same save dir as model)
 # - maybe use msg model?
 # maybe train DeepCAD myself?
+# Write pipeline PC->PN++->z->DeepCAD->step
