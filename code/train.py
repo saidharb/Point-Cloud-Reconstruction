@@ -57,9 +57,9 @@ def save_metrics(*lists, save_path = "", epoch = 1):
 
 def main(args):
 
-    data_and_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    date_and_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     print(f"### NEW TRAINING STARTED ###"
-          f"\n{data_and_time}\n", flush=True)
+          f"\n{date_and_time}\n", flush=True)
     start_time = time.time()
 
     # Find data directory
@@ -71,12 +71,12 @@ def main(args):
 
     # Find experiment directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    save_dir = os.path.abspath(os.path.join(script_dir, "..", "models", "trained_models", data_and_time))
+    save_dir = os.path.abspath(os.path.join(script_dir, "..", "models", "trained_models", date_and_time))
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
         print(f"Created model save directory at: {os.path.abspath(save_dir)}\n")
     # Logging
-    monitor = Logger(save_dir)
+    monitor = Logger(save_dir, 'train')
     
     # Print parameters
     monitor.log_and_print("### Parameters ###\n")
@@ -92,7 +92,7 @@ def main(args):
         'model_type': 'pointnet2_cls_ssg',
         'save_interval': args.save_interval,
         'early_stopping': args.early_stopping,
-        'start_time': data_and_time
+        'start_time': date_and_time
     }
     
     if args.wandb:
@@ -271,7 +271,7 @@ if __name__ == '__main__':
 # maybe log how much data is on disk?
 # - Tune learning rate hyperparameter (look at convergence of loss for that)
 # - write test.py (with log file at same save dir as model)
-# - maybe use msg model?
+# - maybe use msg model? -> in this case first check how to identify which model was used (config file/log file?)
 # maybe train DeepCAD myself?
 # Write pipeline PC->PN++->z->DeepCAD->step
 
