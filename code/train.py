@@ -280,3 +280,5 @@ if __name__ == '__main__':
 
 # README
 # - describe req.txt
+# On cluster I had to install open3d using conda-forge and it is 0.18.0 and not 0.19.0
+# Therefore I removed it from the req.txt
