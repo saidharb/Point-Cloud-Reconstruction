@@ -106,13 +106,6 @@ def main(args):
         else:
             print("No WandB API key provided, WandB is disabled.\n", flush=True)
 
-    # Load data
-    train_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'train')
-    train_dataloader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle = True)
-    val_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'validation')
-    val_dataloader = DataLoader(val_dataset, batch_size = args.batch_size, shuffle = False)
-    monitor.log(f"Train set: {len(train_dataloader)}, Validation set: {len(val_dataloader)}")
-
     # Load model
     print("### Load PointNet++ ssg model ###\n", flush=True)
     sys.path.append(os.path.join(root_dir, 'models','Pointnet_Pointnet2_pytorch', 'models'))
@@ -127,6 +120,14 @@ def main(args):
     classifier = classifier.to(device)
     criterion = criterion.to(device)
     print("--- DONE ---\n", flush=True)
+
+    # Load data
+    num_workers = 0 if device.type == 'cpu' else 4
+    train_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'train')
+    train_dataloader = DataLoader(train_dataset, batch_size = args.batch_size, num_workers = num_workers, shuffle = True)
+    val_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'validation')
+    val_dataloader = DataLoader(val_dataset, batch_size = args.batch_size, num_workers = num_workers, shuffle = False)
+    monitor.log(f"Train set: {len(train_dataloader)}, Validation set: {len(val_dataloader)}")
 
     ## Optimizer
     optimizer = torch.optim.Adam(
@@ -264,12 +265,9 @@ if __name__ == '__main__':
     args = parse_args()
     main(args)
 
-# CLUSTER
-# - Always delete on cluster and copy from disk the code folder, never change anything 
-# in the cluster -> diverging branches
-# Recreate venv and put it on readme
-
 # NEXT:
+# - show time per epoch
+# increase gpu usage?
 # maybe log how much data is on disk?
 # - Tune learning rate hyperparameter (look at convergence of loss for that)
 # - write test.py (with log file at same save dir as model)
