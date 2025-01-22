@@ -80,7 +80,10 @@ class Logger():
         file_handler = logging.FileHandler(os.path.abspath(os.path.join(save_dir, log_name + ".log")))
         file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
         self.logger.addHandler(file_handler)
-        self.logger.info(f"### NEW TRAINING STARTED ###\n")
+        if phase == 'train':
+            self.logger.info(f"### NEW TRAINING STARTED ###\n")
+        else:
+            self.logger.info(f"### TEST STARTED ###\n")
         self.logger.info(f"Save directory: {save_dir}\n")
 
     def log_and_print(self, information):
