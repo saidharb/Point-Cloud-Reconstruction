@@ -35,7 +35,7 @@ class SaveBestModel():
         if val_loss < self.best_val_loss:
             self.logger.log_and_print(f"New best model found with validation MSE: {val_loss:.8f} --- "
                                       f"Improvement to previous best in epoch"
-                                      f" {epoch + 1}: {(self.best_val_loss - val_loss):.8f}")
+                                      f" {self.best_epoch + 1}: {(self.best_val_loss - val_loss):.8f}")
             self.best_val_loss = val_loss
             self.best_epoch = epoch
             self.logger.log_and_print(f"Saving model to: {os.path.abspath(self.best_model_path)}")
