@@ -86,7 +86,7 @@ The script will create a `test.log` and a `test_metrics.csv` file within the par
 
 ## Other
 ### Experimental notebooks
-In the code directory you can find three experimental jupyter notebooks, which I use to explore and test out scripts and models.
+In the code directory you can find experimental jupyter notebooks, which I use to explore and test out scripts and models.
 
 ### Report
 In the report directory you can find the slides for my literature research. The whole repository is still work in progress.
