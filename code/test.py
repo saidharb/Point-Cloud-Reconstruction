@@ -2,20 +2,15 @@ import os
 import sys
 import argparse
 import importlib
-from datetime import datetime
 import time
 import csv
 
 import torch
 from torch.utils.data import DataLoader
-import wandb
-import torch.nn as nn
-import torch.nn.functional as F
 
 from dataset import PointCloudEmbeddingDataset
-from models.Pointnet_Pointnet2_pytorch import provider
 from metrics import RegressionRunningScore
-from utils import SaveBestModel, EarlyStopping, Logger
+from utils import Logger
 
 def parse_args():
     '''PARAMETERS'''
@@ -27,6 +22,7 @@ def parse_args():
                         type=str, 
                         default='data', 
                         help='data directory relative to root directory')
+    parser.add_argument('--verbose', action='store_true', default=False, help='output per batch metrics')
     parser.add_argument('--model_path', type=str, required=True, help='path to the trained model')
     parser.add_argument('--batch_size', type=int, default=24, help='batch size')
     return parser.parse_args()
@@ -36,9 +32,18 @@ def inplace_relu(m):
     if classname.find('ReLU') != -1:
         m.inplace=True
 
+def save_test_metrics(*lists, save_path = ""):
+    headers = ['mse', 'rmse', 'mae']
+    with open(os.path.join(save_path, 'test_metrics.csv'), mode='w', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerow(headers)
+        for row in zip(*lists):
+            writer.writerow(row)
+
 def main(args):
 
     print("### TEST STARTED ###\n")
+    start_time = time.time()
 
     # Find data directory
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -73,7 +78,49 @@ def main(args):
     # Load saved model
     state_dict = saved_model['model_state_dict']
     classifier.load_state_dict(state_dict)
+    classifier = classifier.to(device)
+    criterion = criterion.to(device)
     monitor.log_and_print(f'\nLoaded state dict from {os.path.abspath(args.model_path)}.')
+
+    # Data
+    num_workers = 0 if device.type == 'cpu' else 4
+    test_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'test')
+    test_dataloader = DataLoader(test_dataset, batch_size = args.batch_size, num_workers = num_workers, shuffle = False)
+    monitor.log(f"Length test set: {len(test_dataloader)}\n")
+
+    # Metrics
+    scores_test = RegressionRunningScore(len(test_dataloader))
+
+    # Testing
+    classifier.eval()
+    with torch.no_grad():
+        for i, (pc, latent_rep) in enumerate(test_dataloader):
+            pc, latent_rep = pc.to(device), latent_rep.to(device)
+            pc = pc.transpose(2, 1)
+            pred, _ = classifier(pc)
+            loss_test = criterion(pred,latent_rep)
+
+            scores_test.update(loss_test.detach(), pred, latent_rep)
+
+            if args.verbose:
+                print(f"Test Batch {i + 1}/{len(test_dataloader)}: "
+                    f"Loss: {loss_test.cpu().item():.8f} --- "
+                    f"RMSE: {scores_test.get_batch_rmse(loss_test):.8f} --- "
+                    f"MAE: {scores_test.get_batch_mae(pred, latent_rep):.8f}", flush=True)
+
+            # if i == 10:
+            #     break
+
+    scores_test.epoch_finished()
+    monitor.log_and_print("### RESULTS ###")
+    monitor.log_and_print(f"Test --- "
+                          f"Avg. Loss/MSE: {scores_test.get_epoch_mse(0):.8f} --- "
+                          f"Avg. RMSE: {scores_test.get_epoch_rmse(0):.8f} --- "
+                          f"Avg. MAE: {scores_test.get_epoch_mae(0):.8f}")
+    save_test_metrics(*scores_test.get_metrics_list(), 
+                     save_path = model_dir)
+    duration = round((time.time() - start_time) / 60.0, 2)
+    monitor.log_and_print(f"Test time in minutes: {duration}")
 
 
 
