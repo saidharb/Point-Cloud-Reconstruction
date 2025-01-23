@@ -8,6 +8,7 @@ import csv
 
 import torch
 from torch.utils.data import DataLoader
+import torch.nn as nn #
 import wandb
 
 from dataset import PointCloudEmbeddingDataset
@@ -117,6 +118,10 @@ def main(args):
     ## Cuda
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     monitor.log_and_print(f"Using device: {device}\n")
+    monitor.log_and_print(torch.cuda.device_count())#
+    if torch.cuda.device_count() > 1:#
+        monitor.log_and_print(f"Using {torch.cuda.device_count()} GPUs.\n")#
+        classifier = nn.DataParallel(classifier)#
     classifier = classifier.to(device)
     criterion = criterion.to(device)
     print("--- DONE ---\n", flush=True)
@@ -270,9 +275,8 @@ if __name__ == '__main__':
     main(args)
 
 # NEXT:
-# - show time per epoch
 # split up on two gpu's?
-# maybe log how much data is on disk?
+# check if validation data is correct
 # - Tune learning rate hyperparameter (look at convergence of loss for that) (too high?)
 # - write test.py (with log file at same save dir as model)
 # - maybe use msg model? -> in this case first check how to identify which model was used (config file/log file?)
