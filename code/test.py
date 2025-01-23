@@ -128,7 +128,3 @@ def main(args):
 if __name__ == '__main__':
     args = parse_args()
     main(args)
-
-# TODO: - print model configuration when testing -> save in logfile
-# - create csv file test_metrics with test metrics in respective directory
-# Create README for testing
