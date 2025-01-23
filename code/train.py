@@ -274,6 +274,9 @@ if __name__ == '__main__':
     args = parse_args()
     main(args)
 
+# BEFORE FRIDAY ENDS:
+# - Start at least one new training with better learning rate, maybe msg model
+
 # NEXT:
 # split up on two gpu's?
 # check if validation data is correct
@@ -286,9 +289,6 @@ if __name__ == '__main__':
 # Write pipeline PC->PN++->z->DeepCAD->step --> Thereby check data integrity
 
 # README
-# - describe req.txt
-# On cluster I had to install open3d using conda-forge and it is 0.18.0 and not 0.19.0
-# Therefore I removed it from the req.txt
 # Envirnonment req.txt for DeepCAD
 
 

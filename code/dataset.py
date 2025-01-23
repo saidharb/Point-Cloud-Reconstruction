@@ -45,6 +45,9 @@ class PointCloudEmbeddingDataset(Dataset):
         point_cloud = torch.tensor(np.asarray(point_cloud.points), dtype = torch.float32) # [B, N, C]
         latent_rep = torch.tensor(self.latent[idx], dtype = torch.float32) # [B, D]
         return point_cloud, latent_rep
+    
+    def get_path(self, idx):
+        return self.pc[idx]
 
     def read_split(self):
         with open(self.split_path, "r") as fp:
