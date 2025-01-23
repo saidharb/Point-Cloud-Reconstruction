@@ -34,3 +34,8 @@ wandb/
 # Virtual environments
 pointnet_venv/
 src/
+
+# Cluster files
+**/*.job
+**/*.err
+**/*.out

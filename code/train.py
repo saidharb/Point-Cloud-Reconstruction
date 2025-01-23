@@ -118,7 +118,7 @@ def main(args):
     ## Cuda
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     monitor.log_and_print(f"Using device: {device}\n")
-    monitor.log_and_print(torch.cuda.device_count())#
+    monitor.log_and_print(f"Number of devices: {detorch.cuda.device_count()}")#
     if torch.cuda.device_count() > 1:#
         monitor.log_and_print(f"Using {torch.cuda.device_count()} GPUs.\n")#
         classifier = nn.DataParallel(classifier)#
