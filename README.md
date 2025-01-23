@@ -1,4 +1,4 @@
-# Point-Cloud-Reconstruction
+# Point Cloud to CAD Model Reconstruction using Deep Learning
 GitHub repository for my Masters Thesis
 
 The goal of this project is to predict CAD sequences from input point clouds. 
