@@ -84,7 +84,7 @@ class Logger():
             self.logger.info(f"### NEW TRAINING STARTED ###\n")
         else:
             self.logger.info(f"### TEST STARTED ###\n")
-        self.logger.info(f"Save directory: {save_dir}\n")
+        self.log_and_print(f"Save directory: {save_dir}\n")
 
     def log_and_print(self, information):
         print(information, flush=True)

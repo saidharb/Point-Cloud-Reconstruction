@@ -30,19 +30,15 @@ def parse_args():
     parser.add_argument('--model_path', type=str, required=True, help='path to the trained model')
     parser.add_argument('--batch_size', type=int, default=24, help='batch size')
     return parser.parse_args()
-
-class get_loss_mse(nn.Module):
-    def __init__(self):
-        super(get_loss_mse, self).__init__()
-
-    def forward(self, pred, target):
-        total_loss = F.mse_loss(pred, target)
-
-        return total_loss
+    
+def inplace_relu(m):
+    classname = m.__class__.__name__
+    if classname.find('ReLU') != -1:
+        m.inplace=True
 
 def main(args):
 
-    print("### TEST STARTED ###")
+    print("### TEST STARTED ###\n")
 
     # Find data directory
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -60,15 +56,25 @@ def main(args):
 
     # Load model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    classifier = torch.load(args.model_path, map_location=torch.device(device), weights_only=True)
+    saved_model = torch.load(args.model_path, map_location=torch.device(device), weights_only=True)
     
-    config = classifier['config']
+    config = saved_model['config']
     monitor.log_and_print("### Parameters ###\n")
     for key, value in config.items():
         monitor.log_and_print(f"{key}: {value}")
 
-    criterion = get_loss_mse()
-    # next: load model, move best.pt somewhere where it makes more sense and I can see in VSCode
+    # Create model
+    sys.path.append(os.path.join(root_dir, 'models','Pointnet_Pointnet2_pytorch', 'models'))
+    model = importlib.import_module('pointnet2_cls_ssg')
+    classifier = model.get_model(256, normal_channel=False)
+    criterion = model.get_loss_mse()
+    classifier.apply(inplace_relu)
+
+    # Load saved model
+    state_dict = saved_model['model_state_dict']
+    classifier.load_state_dict(state_dict)
+    monitor.log_and_print(f'\nLoaded state dict from {os.path.abspath(args.model_path)}.')
+
 
 
 if __name__ == '__main__':
