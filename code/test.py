@@ -87,6 +87,7 @@ def main(args):
     test_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'test')
     test_dataloader = DataLoader(test_dataset, batch_size = args.batch_size, num_workers = num_workers, shuffle = False)
     monitor.log(f"Length test set: {len(test_dataloader)}\n")
+    monitor.log_and_print(f"Using device: {device}\n")
 
     # Metrics
     scores_test = RegressionRunningScore(len(test_dataloader))
@@ -130,3 +131,4 @@ if __name__ == '__main__':
 
 # TODO: - print model configuration when testing -> save in logfile
 # - create csv file test_metrics with test metrics in respective directory
+# Create README for testing
