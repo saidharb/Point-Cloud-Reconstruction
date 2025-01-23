@@ -160,7 +160,7 @@ def main(args):
     # Training
     monitor.log_and_print("### Training starts ###\n")
     for epoch in range(0, args.max_epochs):
-        classifier = classifier.train()
+        classifier.train()
         print(f"Epoch {epoch + 1}/{args.max_epochs}", flush=True)
         epoch_start_time = time.time()
 
@@ -222,7 +222,7 @@ def main(args):
                 # if j == 2:
                 #     break
         
-        epoch_duration = (time.time() - start_time) / 60.0
+        epoch_duration = (time.time() - epoch_start_time) / 60.0
         scores_val.epoch_finished()
         print(f"Validation --- "
               f"Avg. Loss/MSE: {scores_val.get_epoch_mse(epoch):.8f} --- "
@@ -277,11 +277,14 @@ if __name__ == '__main__':
 # NEXT:
 # split up on two gpu's?
 # check if validation data is correct
-# - Tune learning rate hyperparameter (look at convergence of loss for that) (too high?)
+# - Tune learning rate hyperparameter 
+# (look at convergence of loss for that) (too high?)
+# reduce patience? 
+# Cosine annealing?
 # - write test.py (with log file at same save dir as model)
 # - maybe use msg model? -> in this case first check how to identify which model was used (config file/log file?)
 # maybe train DeepCAD myself?
-# Write pipeline PC->PN++->z->DeepCAD->step
+# Write pipeline PC->PN++->z->DeepCAD->step --> Thereby check data integrity
 
 # README
 # - describe req.txt
