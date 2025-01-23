@@ -157,6 +157,7 @@ def main(args):
     for epoch in range(0, args.max_epochs):
         classifier = classifier.train()
         print(f"Epoch {epoch + 1}/{args.max_epochs}", flush=True)
+        epoch_start_time = time.time()
 
         for i, (pc, latent_rep) in enumerate(train_dataloader):
             optimizer.zero_grad()
@@ -184,8 +185,8 @@ def main(args):
                     f"RMSE: {scores_train.get_batch_rmse(loss_train):.8f} --- "
                     f"MAE: {scores_train.get_batch_mae(pred, latent_rep):.8f}", flush=True)
 
-            # if i == 2:
-            #     break
+            if i == 2:
+                break
 
         scores_train.epoch_finished()
 
@@ -213,9 +214,10 @@ def main(args):
                         f"RMSE: {scores_val.get_batch_rmse(loss_val):.8f} --- "
                         f"MAE: {scores_val.get_batch_mae(pred, latent_rep):.8f}", flush=True)
 
-                # if j == 2:
-                #     break
+                if j == 2:
+                    break
         
+        epoch_duration = (time.time() - start_time) / 60.0
         scores_val.epoch_finished()
         print(f"Validation --- "
               f"Avg. Loss/MSE: {scores_val.get_epoch_mse(epoch):.8f} --- "
@@ -238,11 +240,13 @@ def main(args):
                         'train_mae': scores_train.get_epoch_mae(epoch),
                         'val_loss': scores_val.get_epoch_mse(epoch),
                         'val_rmse': scores_val.get_epoch_rmse(epoch),
-                        'val_mae': scores_val.get_epoch_mae(epoch)})
+                        'val_mae': scores_val.get_epoch_mae(epoch),
+                        'time': epoch_duration})
         
-        monitor.log(f"Epoch {epoch+1}/{args.max_epochs} --- "
+        monitor.log(f"Epoch {f'{epoch+1}/{args.max_epochs}':<7} --- "
                     f"Train - MSE: {scores_train.get_epoch_mse(epoch):.8f} RMSE: {scores_train.get_epoch_rmse(epoch):.8f} MAE: {scores_train.get_epoch_mae(epoch):.8f} --- "
-                    f"Val - MSE: {scores_val.get_epoch_mse(epoch):.8f} RMSE: {scores_val.get_epoch_rmse(epoch):.8f} MAE: {scores_val.get_epoch_mae(epoch):.8f}")
+                    f"Val - MSE: {scores_val.get_epoch_mse(epoch):.8f} RMSE: {scores_val.get_epoch_rmse(epoch):.8f} MAE: {scores_val.get_epoch_mae(epoch):.8f} --- "
+                    f"Time in mins: {epoch_duration:.2f}")
         best_model_tracker.update(scores_val.get_epoch_mse(epoch), epoch, classifier)
 
         save_metrics(learning_rates, 
@@ -267,9 +271,9 @@ if __name__ == '__main__':
 
 # NEXT:
 # - show time per epoch
-# increase gpu usage?
+# split up on two gpu's?
 # maybe log how much data is on disk?
-# - Tune learning rate hyperparameter (look at convergence of loss for that)
+# - Tune learning rate hyperparameter (look at convergence of loss for that) (too high?)
 # - write test.py (with log file at same save dir as model)
 # - maybe use msg model? -> in this case first check how to identify which model was used (config file/log file?)
 # maybe train DeepCAD myself?
