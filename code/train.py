@@ -233,7 +233,7 @@ def main(args):
         current_lr = scheduler.get_last_lr()[0]
         learning_rates.append(current_lr)
         if current_lr != last_lr:
-            monitor.log_and_print(f"Learning rate was adjusted from {last_lr} to {current_lr} in this epoch.")
+            monitor.log_and_print(f"Learning rate was adjusted from {last_lr} to {current_lr} between epoch {epoch} and {epoch + 1}.")
             last_lr = current_lr
 
         if args.wandb:
@@ -281,7 +281,6 @@ if __name__ == '__main__':
 # (look at convergence of loss for that) (too high?)
 # reduce patience? 
 # Cosine annealing?
-# - write test.py (with log file at same save dir as model)
 # - maybe use msg model? -> in this case first check how to identify which model was used (config file/log file?)
 # maybe train DeepCAD myself?
 # Write pipeline PC->PN++->z->DeepCAD->step --> Thereby check data integrity
@@ -290,3 +289,6 @@ if __name__ == '__main__':
 # - describe req.txt
 # On cluster I had to install open3d using conda-forge and it is 0.18.0 and not 0.19.0
 # Therefore I removed it from the req.txt
+# Envirnonment req.txt for DeepCAD
+
+
