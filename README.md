@@ -71,6 +71,19 @@ $ python code/train.py
 
 The training script will create a directory `models/trained_models` where all training runs are saved including the best model, checkpoint models, logging information and a csv file containing the metrics. The learning rate will be halfed, if the validation loss did not decrease for the number of epochs specified in `lr_patience`.
 
+### Test PointNet++
+You can test the performance of PointNet++ to encode point clouds into the same latent space as the CAD-sequences using the `code/test.py` script:
+```bash
+$ python code/test.py --model_path <path/to/model/from/root>
+```
+The script will create a `test.log` and a `test_metrics.csv` file within the particular models directory saving the test metrics (MSE, RMSE, MAE).
+| Argument           | Type    | Default      | Description                                                                 |
+|--------------------|---------|--------------|-----------------------------------------------------------------------------|
+| `--data_root`      | `str`   | `'data'`     | Data directory relative to root directory                                   |
+| `--model_path`     | `str`   | required     | Path to the trained model                                                 |
+| `--batch_size`     | `int`   | `24`         | Batch size                                                                 |
+| `--verbose`        | `bool`  | `False`      | Output per batch metrics                                                   |
+
 ## Other
 ### Experimental notebooks
 In the code directory you can find three experimental jupyter notebooks, which I use to explore and test out scripts and models.
