@@ -31,6 +31,18 @@ The pretrained model will encode the CAD sequences and save the results in the `
 ## PointNet++
 Until this point, the CAD-sequence dataset is downloaded, the CAD-sequences are converted to point clouds and the CAD-sequences are encoded into the latent space by the DeepCAD model. The next step is to train the PointNet++ model in a regression task on the point clouds with the latent representation of the CAD-sequences as targets. PointNet++ is from the paper [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413) NIPS 2017 by Qi et al. and for this project the [PyTorch version](https://github.com/yanx27/Pointnet_Pointnet2_pytorch) will be used and modified (cf. [CHANGELOG.md](https://github.com/saidharb/Point-Cloud-Reconstruction/blob/main/models/Pointnet_Pointnet2_pytorch/CHANGELOG.md)). 
 
+### Setup
+As a good practice before executing the code, create a new conda environment and install all dependencies from the root repository:
+```bash
+$ conda create -n <name of environment>
+$ conda activate <name of environment>
+$ pip install -r requirements.txt
+```
+If there are problems with pip finding an appropriate version for open3d, use conda-forge to install it:
+```bash
+$ conda install -c conda-forge open3d
+```
+
 ### Train PointNet++
 In order to train PointNet++ a training script is developed, which will dynamically adapt to CPU or GPU. Before executing the training scrip two environment variables have to be set, in particular the `PYTHONPATH` and the `WANDB_API_KEY`, if training should be tracked using Weight and Biases. The API key can be obtained from your user account at WandB. Set the environment variables from the root repository like this:
 
