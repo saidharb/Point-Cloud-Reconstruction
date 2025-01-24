@@ -127,7 +127,7 @@ def main(args):
     print("--- DONE ---\n", flush=True)
 
     # Load data
-    num_workers = 0 if device.type == 'cpu' else 4
+    num_workers = 0 if device.type == 'cpu' else 8
     train_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'train')
     train_dataloader = DataLoader(train_dataset, batch_size = args.batch_size, num_workers = num_workers, shuffle = True)
     val_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'validation')
