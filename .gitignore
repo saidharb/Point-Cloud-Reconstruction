@@ -39,3 +39,9 @@ src/
 **/*.job
 **/*.err
 **/*.out
+
+# CAD files
+**/*.step
+
+# h5 files
+**/*.h5

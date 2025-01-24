@@ -274,11 +274,24 @@ if __name__ == '__main__':
     args = parse_args()
     main(args)
 
+
+# FIX
+# Splitting up the load on multiple GPU's works!
+# However, the batch size needs to be adapted and possibly the number of workers if gpu's are available
+# CRITICAL: The cluster kicks me out at some points,
+# and when I am let back into the cluster, the training script is run again!
+# Therefore a new model is trained and the former one is abandonend
+# Implement a "last.pth" model and something like a project dir, so that when a job is started and paused, 
+# it will revert to continuing training the last model in the same directory   
+
+
+
+
 # BEFORE FRIDAY ENDS:
 # - Start at least one new training with better learning rate, maybe msg model
 
 # NEXT:
-# split up on two gpu's?
+# Why does import into pipeline work now that I appended sys.path? Find out exactly why
 # check if validation data is correct
 # - Tune learning rate hyperparameter 
 # (look at convergence of loss for that) (too high?)
