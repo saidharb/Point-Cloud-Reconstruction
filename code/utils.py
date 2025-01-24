@@ -3,10 +3,11 @@ import time
 import logging
 
 import torch
+import pandas as pd
 
 class SaveBestModel():
 
-    def __init__(self, config, save_dir, logger):
+    def __init__(self, config, save_dir, logger, cont = False):
         self.best_val_loss = float('inf')
         self.save_dir = save_dir
         self.best_model_path = os.path.join(self.save_dir, "best.pth")
@@ -16,6 +17,15 @@ class SaveBestModel():
         self.logger = logger
         self.save_interval = config['save_interval']
         self.start_time = time.time()
+
+        # Load previous metrics if continuing training
+        if cont:
+            df = pd.read_csv(os.path.join(save_dir, 'metrics.csv'))
+            data_dict = df.to_dict(orient = 'list')
+            self.best_val_loss = max(data_dict['val_mse'])
+            self.current_epoch = len(data_dict['epoch'])
+            self.best_epoch = data_dict['val_mse'].index(max(data_dict['val_mse']))
+            self.start_time = time.time() - config['training_time_min'] * 60.0 
 
 
     def update(self, val_loss, epoch, model):
@@ -62,22 +72,29 @@ class SaveBestModel():
 
 class EarlyStopping():
 
-    def __init__(self, config, logger):
+    def __init__(self, config, logger, save_dir, cont = False):
         self.max_epochs = config['early_stopping']
         self.epoch = 0
         self.best_loss = float('inf')
         self.best_epoch = 0
         self.logger = logger
+        if cont:
+            df = pd.read_csv(os.path.join(save_dir, 'metrics.csv'))
+            data_dict = df.to_dict(orient = 'list')
+            self.epoch = len(data_dict['epoch'])
+            self.best_loss = max(data_dict['val_mse'])
+            self.best_epoch = data_dict['val_mse'].index(max(data_dict['val_mse']))
+
 
     def update(self, loss):
         if loss < self.best_loss:
             self.best_epoch = self.epoch
-            self.epochs = 0
+            self.epoch = 0
             self.best_loss = loss
         else:
-            self.epochs += 1
+            self.epoch += 1
     
-        if self.epochs == self.max_epochs:
+        if self.epoch == self.max_epochs:
             self.logger.log_and_print(f"Early stopping: Validation loss did not decrease for {self.max_epochs} epochs "
                                       f"from {self.best_loss:.8f} since epoch {self.best_epoch + 1}.")
             return True
@@ -91,9 +108,7 @@ class Logger():
         file_handler = logging.FileHandler(os.path.abspath(os.path.join(save_dir, log_name + ".log")))
         file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
         self.logger.addHandler(file_handler)
-        if phase == 'train':
-            self.logger.info(f"### NEW TRAINING STARTED ###\n")
-        else:
+        if phase == 'test':
             self.logger.info(f"### TEST STARTED ###\n")
         self.log_and_print(f"Save directory: {save_dir}\n")
 
@@ -103,6 +118,63 @@ class Logger():
 
     def log(self, information):
         self.logger.info(information)
+
+class LearningRateScheduler():
+
+    def __init__(self, optimizer, factor, patience, logger, save_dir, cont = False):
+        self.optimizer = optimizer
+        self.factor = factor
+        self.patience = patience
+        self.running_patience = patience
+        self.best_loss = float('inf')
+        self.lr_history = []
+        self.logger = logger
+        self.min_lr = 1e-6
+        if cont:
+            df = pd.read_csv(os.path.join(save_dir, 'metrics.csv'))
+            data_dict = df.to_dict(orient = 'list')
+            self.lr_history = data_dict['learning_rate']
+            self.set_new_learning_rate(historic_lr = self.lr_history[-1])
+
+    def get_current_learning_rate(self):
+        return self.optimizer.param_groups[0]['lr']
+    
+    def set_new_learning_rate(self, historic_lr = None):
+        current_lr = self.get_current_learning_rate()
+        new_lr = current_lr * self.factor
+        if historic_lr:
+            for param_group in self.optimizer.param_groups:
+                param_group['lr'] = historic_lr
+        else:
+            for param_group in self.optimizer.param_groups:
+                param_group['lr'] = new_lr
+
+    def get_lr_history(self):
+        return self.lr_history
+
+    def update(self, loss):
+        self.lr_history.append(self.get_current_learning_rate())
+
+        if loss >= self.best_loss:
+            self.running_patience -= 1
+        else:
+            self.running_patience = self.patience
+            self.best_loss = loss
+
+        if self.running_patience == 0:
+            if self.get_current_learning_rate() > self.min_lr:
+                self.logger.log_and_print(f"No decrease in validation loss since {self.patience} epochs.\n"
+                            f"Reducing learning rate from {self.get_current_learning_rate()} to "
+                            f"{self.get_current_learning_rate() * self.factor}.")
+                self.set_new_learning_rate()
+                self.running_patience = self.patience
+            else:
+                self.logger.log_and_print(f"Reducing learning rate {self.get_current_learning_rate()} "
+                                          f"by a factor of {self.factor} would exceed minimum learning "
+                                          f"rate of {self.min_lr}.")
+        
+
+
 
 
         

@@ -1,7 +1,10 @@
+import os
+
 import torch
+import pandas as pd
 
 class RegressionRunningScore():
-    def __init__(self, length):
+    def __init__(self, length, save_dir, phase = None, cont = False):
         self.length = length
         self.mse = []
         self.rmse = []
@@ -9,6 +12,17 @@ class RegressionRunningScore():
         self.running_mse = 0.0
         self.running_rmse = 0.0
         self.running_mae = 0.0
+        if cont:
+            df = pd.read_csv(os.path.join(save_dir, 'metrics.csv'))
+            data_dict = df.to_dict(orient = 'list')
+            if phase == 'train':
+                self.mse = data_dict['train_mse']
+                self.rmse = data_dict['train_rmse']
+                self.mae = data_dict['train_mae']
+            if phase == 'validation':
+                self.mse = data_dict['val_mse']
+                self.rmse = data_dict['val_rmse']
+                self.mae = data_dict['val_mae']
 
     def update(self, mse, pred, target):
         rmse = torch.sqrt(mse)

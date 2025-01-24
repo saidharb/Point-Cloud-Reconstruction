@@ -14,7 +14,7 @@ import wandb
 from dataset import PointCloudEmbeddingDataset
 from models.Pointnet_Pointnet2_pytorch import provider
 from metrics import RegressionRunningScore
-from utils import SaveBestModel, EarlyStopping, Logger
+from utils import SaveBestModel, EarlyStopping, Logger, LearningRateScheduler
 
 # torch.manual_seed(42)
         
@@ -40,6 +40,7 @@ def parse_args():
     parser.add_argument('--wandb', action='store_true', default=False, help='enable WandB tracking')
     parser.add_argument('--name', type=str, default="test_run", help="name of WandB run")
     parser.add_argument('--lr_patience', type=int, default=15, help="patience in epochs for learning rate decay")
+    parser.add_argument('--output_dir', type=str, required=True, help='name of output directory in trained_models')
     return parser.parse_args()
 
 def inplace_relu(m):
@@ -59,8 +60,6 @@ def save_metrics(*lists, save_path = "", epoch = 1):
 def main(args):
 
     date_and_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    print(f"### NEW TRAINING STARTED ###"
-          f"\n{date_and_time}\n", flush=True)
     start_time = time.time()
 
     # Find data directory
@@ -72,12 +71,24 @@ def main(args):
 
     # Find experiment directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    save_dir = os.path.abspath(os.path.join(script_dir, "..", "models", "trained_models", date_and_time))
+    save_dir = os.path.abspath(os.path.join(script_dir, "..", "models", "trained_models", args.output_dir))
+    continue_training = False
     if not os.path.exists(save_dir):
+        print(f"### NEW TRAINING STARTED ###"
+          f"\n{date_and_time}\n", flush=True)
         os.makedirs(save_dir)
         print(f"Created model save directory at: {os.path.abspath(save_dir)}\n")
+    else:
+        print(f"### CONTINUING TRAINING ###"
+          f"\n{date_and_time}\n", flush=True)
+        continue_training = True
+
     # Logging
     monitor = Logger(save_dir, 'train')
+    if continue_training:
+        monitor.log_and_print("### CONTINUING TRAINING ###")
+    else:
+        monitor.log_and_print("### NEW TRAINING STARTED ###")
     
     # Print parameters
     monitor.log_and_print("### Parameters ###\n")
@@ -85,16 +96,29 @@ def main(args):
         monitor.log_and_print(f"{key}: {value}")
     print("\n--- DONE ---\n", flush=True)
 
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     # Load model
-    print("### Load PointNet++ ssg model ###\n", flush=True)
     sys.path.append(os.path.join(root_dir, 'models','Pointnet_Pointnet2_pytorch', 'models'))
     model = importlib.import_module('pointnet2_cls_ssg')
     classifier = model.get_model(256, normal_channel=False)
     criterion = model.get_loss_mse()
     classifier.apply(inplace_relu)
+    first_epoch = 0
+    if continue_training:
+        monitor.log_and_print("### Load pretrained PointNet++ ssg model ###\n")
+        model_path = os.path.join(save_dir, 'last.pth')
+        saved_model = torch.load(model_path, map_location=torch.device(device), weights_only=True)
+        state_dict = saved_model['model_state_dict']
+        first_epoch = saved_model['config']['final_epoch'] 
+        classifier.load_state_dict(state_dict)
+        classifier = classifier.to(device)
+        criterion = criterion.to(device)
+        monitor.log_and_print(f'\nLoaded state dict from {model_path}.')
+    else:
+        monitor.log_and_print("### Load new PointNet++ ssg model ###\n")
     
     ## Cuda
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     monitor.log_and_print(f"Using device: {device}\n")
     monitor.log_and_print(f"Number of devices: {torch.cuda.device_count()}")#
     batch_size = args.batch_size
@@ -117,17 +141,38 @@ def main(args):
         'early_stopping': args.early_stopping,
         'start_time': date_and_time
     }
-    
+
+    if continue_training:
+        model_path = os.path.join(save_dir, 'last.pth')
+        saved_model = torch.load(model_path, map_location=torch.device(device), weights_only=True)
+        config = saved_model['config']
+
     if args.wandb:
         print("### WANDB ###\n", flush=True)
         if os.getenv("WANDB_API_KEY"):
             print("Logging into WandB...\n", flush=True)
             wandb.login(key=os.getenv("WANDB_API_KEY"))
-            wandb.init(project = 'Master Thesis',
-                        name = args.name,
-                        config = config)
+
+            run_id_file = os.path.join(save_dir, "wandb_run_id.txt")
+            if os.path.exists(run_id_file):
+                with open(run_id_file, "r") as f:
+                    run_id = f.read().strip()
+                print(f"Resuming WandB run with ID: {run_id}\n", flush=True)
+                wandb.init(project='Master Thesis',
+                        id=run_id,
+                        resume="allow",
+                        config=config)
+            else:
+                run = wandb.init(project='Master Thesis',
+                                name=args.name,
+                                config=config)
+                run_id = run.id
+                with open(run_id_file, "w") as f:
+                    f.write(run_id)
+                print(f"New WandB run started with ID: {run_id}\n", flush=True)
         else:
             print("No WandB API key provided, WandB is disabled.\n", flush=True)
+
 
     # Load data
     num_workers = 0 if device.type == 'cpu' else 8
@@ -145,24 +190,18 @@ def main(args):
         eps=1e-08,
         weight_decay=1e-4
         )
+    
+    scheduler = LearningRateScheduler(optimizer, 0.5, args.lr_patience, monitor, save_dir, cont = continue_training)
 
-    last_lr = args.learning_rate
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 
-                                                           mode = 'min', 
-                                                           factor = 0.5, 
-                                                           patience = args.lr_patience)
+    scores_train = RegressionRunningScore(len(train_dataloader), save_dir, phase = 'train', cont = continue_training)
+    scores_val = RegressionRunningScore(len(val_dataloader), save_dir, phase = 'validation', cont = continue_training)
 
-    scores_train = RegressionRunningScore(len(train_dataloader))
-    scores_val = RegressionRunningScore(len(val_dataloader))
-
-    best_model_tracker = SaveBestModel(config, save_dir, monitor)
-    early_stopping = EarlyStopping(config, monitor)
-
-    learning_rates = []
+    best_model_tracker = SaveBestModel(config, save_dir, monitor, cont = continue_training)
+    early_stopping = EarlyStopping(config, monitor, save_dir, cont = continue_training)
     
     # Training
     monitor.log_and_print("### Training starts ###\n")
-    for epoch in range(0, args.max_epochs):
+    for epoch in range(first_epoch, args.max_epochs):
         classifier.train()
         print(f"Epoch {epoch + 1}/{args.max_epochs}", flush=True)
         epoch_start_time = time.time()
@@ -193,8 +232,8 @@ def main(args):
                     f"RMSE: {scores_train.get_batch_rmse(loss_train):.8f} --- "
                     f"MAE: {scores_train.get_batch_mae(pred, latent_rep):.8f}", flush=True)
 
-            # if i == 2:
-            #     break
+            if i == 2:
+                break
 
         scores_train.epoch_finished()
 
@@ -222,8 +261,8 @@ def main(args):
                         f"RMSE: {scores_val.get_batch_rmse(loss_val):.8f} --- "
                         f"MAE: {scores_val.get_batch_mae(pred, latent_rep):.8f}", flush=True)
 
-                # if j == 2:
-                #     break
+                if j == 2:
+                    break
         
         epoch_duration = (time.time() - epoch_start_time) / 60.0
         scores_val.epoch_finished()
@@ -233,11 +272,8 @@ def main(args):
               f"Avg. MAE: {scores_val.get_epoch_mae(epoch):.8f}", flush=True)
         scores_val.reset()
 
-        current_lr = scheduler.get_last_lr()[0]
-        learning_rates.append(current_lr)
-        if current_lr != last_lr:
-            monitor.log_and_print(f"Learning rate was adjusted from {last_lr} to {current_lr} between epoch {epoch} and {epoch + 1}.")
-            last_lr = current_lr
+        current_lr = scheduler.get_current_learning_rate()
+        scheduler.update(scores_val.get_epoch_mse(epoch))
 
         if args.wandb:
             if os.getenv("WANDB_API_KEY"):
@@ -257,7 +293,8 @@ def main(args):
                     f"Time in mins: {epoch_duration:.2f}")
         best_model_tracker.update(scores_val.get_epoch_mse(epoch), epoch, classifier)
 
-        save_metrics(learning_rates, 
+        
+        save_metrics(scheduler.get_lr_history(), 
                      *scores_train.get_metrics_list(), 
                      *scores_val.get_metrics_list(),
                      save_path = save_dir,
@@ -266,7 +303,6 @@ def main(args):
         if early_stopping.update(scores_val.get_epoch_mse(epoch)):
             break
 
-        scheduler.step(scores_val.get_epoch_mse(epoch))
         print("", flush=True)
     
     minutes, seconds = divmod(time.time() - start_time, 60)
@@ -285,7 +321,13 @@ if __name__ == '__main__':
 # and when I am let back into the cluster, the training script is run again!
 # Therefore a new model is trained and the former one is abandonend
 # Implement a "last.pth" model and something like a project dir, so that when a job is started and paused, 
-# it will revert to continuing training the last model in the same directory   
+# it will revert to continuing training the last model in the same directory  
+# Learning rate 
+# metrics done
+# save best model
+# wandb
+# logger 
+# early stopping done
 
 
 
