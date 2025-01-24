@@ -13,17 +13,40 @@ class ConfigAE(object):
         self.set_configuration()
 
         # init hyperparameters and parse from command-line
-        parser, args = self.parse()
+        #parser, args = self.parse()
 
         # set as attributes
         print("----Experiment Configuration-----")
-        for k, v in args.__dict__.items():
+        default_args = {
+            "proj_dir": "../data/latent",
+            "data_root": "data",
+            "exp_name": 'pretrained',
+            "gpu_ids": "0",
+            "batch_size": 512,
+            "num_workers": 8,
+            "nr_epochs": 1000,
+            "lr": 1e-3,
+            "grad_clip": 1.0,
+            "warmup_step": 2000,
+            "cont": False,
+            "ckpt": 1000,
+            "vis": False,
+            "save_frequency": 500,
+            "val_frequency": 10,
+            "vis_frequency": 2000,
+            "augment": False,
+            # Additional arguments for non-training mode
+            "mode": None,
+            "outputs": None,
+            "z_path": None,
+        }
+        for k, v in default_args.items():
             print("{0:20}".format(k), v)
             self.__setattr__(k, v)
 
         # experiment paths
         self.exp_dir = os.path.join(self.proj_dir, self.exp_name)
-        if phase == "train" and args.cont is not True and os.path.exists(self.exp_dir):
+        if phase == "train" and self.cont is not True and os.path.exists(self.exp_dir):
             response = input('Experiment log/model already exists, overwrite? (y/n) ')
             if response != 'y':
                 exit()
@@ -34,8 +57,8 @@ class ConfigAE(object):
         ensure_dirs([self.log_dir, self.model_dir])
 
         # GPU usage
-        if args.gpu_ids is not None:
-            os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_ids)
+        if self.gpu_ids is not None:
+            os.environ["CUDA_VISIBLE_DEVICES"] = str(self.gpu_ids)
 
         # create soft link to experiment log directory
         # if not os.path.exists('train_log'):
@@ -44,7 +67,7 @@ class ConfigAE(object):
         # save this configuration
         if self.is_train:
             with open('{}/config.txt'.format(self.exp_dir), 'w') as f:
-                json.dump(args.__dict__, f, indent=2)
+                json.dump(self.__dict__, f, indent=2)
 
     def set_configuration(self):
         self.args_dim = ARGS_DIM # 256

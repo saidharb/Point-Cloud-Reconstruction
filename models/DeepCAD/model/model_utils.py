@@ -1,7 +1,10 @@
 import torch
 from torch.distributions.categorical import Categorical
 import torch.nn.functional as F
-from cadlib.macro import EOS_IDX, SOL_IDX, EXT_IDX
+import os
+import sys
+sys.path.append(os.path.abspath(".."))
+from models.DeepCAD.cadlib.macro import EOS_IDX, SOL_IDX, EXT_IDX
 
 
 def _make_seq_first(*args):

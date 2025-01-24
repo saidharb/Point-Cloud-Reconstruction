@@ -1,5 +1,5 @@
 import os
-from utils import ensure_dirs
+from models.DeepCAD.utils import ensure_dirs
 import argparse
 import json
 import shutil

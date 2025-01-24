@@ -35,7 +35,7 @@ for path in out_paths:
     try:
         if args.form == "h5":
             with h5py.File(path, 'r') as fp:
-                out_vec = fp["out_vec"][:].astype(np.float)
+                out_vec = fp["out_vec"][:].astype(np.float64)
                 out_shape = vec2CADsolid(out_vec)
         else:
             with open(path, 'r') as fp:
@@ -45,6 +45,7 @@ for path in out_paths:
             out_shape = create_CAD(cad_seq)
 
     except Exception as e:
+        print(e)
         print("load and create failed.")
         continue
     
@@ -56,5 +57,6 @@ for path in out_paths:
     
     name = path.split("/")[-1].split(".")[0]
     save_path = os.path.join(save_dir, name + ".step")
+    print(save_path)
     write_step_file(out_shape, save_path)
 

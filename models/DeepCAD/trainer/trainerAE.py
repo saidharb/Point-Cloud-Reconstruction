@@ -1,11 +1,14 @@
 import torch
 import torch.optim as optim
 from tqdm import tqdm
-from model import CADTransformer
+import sys
+import os
+sys.path.append(os.path.abspath(".."))
+from models.DeepCAD.model import CADTransformer
 from .base import BaseTrainer
 from .loss import CADLoss
 from .scheduler import GradualWarmupScheduler
-from cadlib.macro import *
+from models.DeepCAD.cadlib.macro import *
 
 
 class TrainerAE(BaseTrainer):

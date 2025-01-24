@@ -1,2 +1,2 @@
-from .configAE import ConfigAE
+from .configAE_jupyter import ConfigAE
 from .configLGAN import ConfigLGAN
