@@ -19,8 +19,9 @@ class SaveBestModel():
 
 
     def update(self, val_loss, epoch, model):
-
-        if (self.current_epoch + 1) %self.save_interval == 0 and not val_loss < self.best_val_loss:
+        
+        checkpoint_bool = (self.current_epoch + 1) %self.save_interval == 0 and not val_loss < self.best_val_loss
+        if checkpoint_bool:
             checkpoint_path = os.path.abspath(os.path.join(self.save_dir, f'ckpt_{self.current_epoch + 1}.pth'))
             self.logger.log_and_print(f"Saving checkpoint model every {self.save_interval} epochs to: "
                                       f"{checkpoint_path}")
@@ -31,8 +32,9 @@ class SaveBestModel():
                 'config': self.config
             }
             torch.save(checkpoint, checkpoint_path)
-
-        if val_loss < self.best_val_loss:
+        
+        best_model_bool = val_loss < self.best_val_loss
+        if best_model_bool:
             self.logger.log_and_print(f"New best model found with validation MSE: {val_loss:.8f} --- "
                                       f"Improvement to previous best in epoch"
                                       f" {self.best_epoch + 1}: {(self.best_val_loss - val_loss):.8f}")
@@ -46,6 +48,15 @@ class SaveBestModel():
                 'config': self.config
             }
             torch.save(checkpoint, self.best_model_path)
+
+        last_path = os.path.abspath(os.path.join(self.save_dir, f'last.pth'))
+        self.config['final_epoch'] = self.current_epoch + 1
+        self.config['training_time_min'] = round((time.time() - self.start_time) / 60.0, 2)
+        checkpoint = {
+                'model_state_dict': model.state_dict(),
+                'config': self.config
+            }
+        torch.save(checkpoint, last_path)
 
         self.current_epoch += 1
 

@@ -85,9 +85,31 @@ def main(args):
         monitor.log_and_print(f"{key}: {value}")
     print("\n--- DONE ---\n", flush=True)
 
+    # Load model
+    print("### Load PointNet++ ssg model ###\n", flush=True)
+    sys.path.append(os.path.join(root_dir, 'models','Pointnet_Pointnet2_pytorch', 'models'))
+    model = importlib.import_module('pointnet2_cls_ssg')
+    classifier = model.get_model(256, normal_channel=False)
+    criterion = model.get_loss_mse()
+    classifier.apply(inplace_relu)
+    
+    ## Cuda
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    monitor.log_and_print(f"Using device: {device}\n")
+    monitor.log_and_print(f"Number of devices: {torch.cuda.device_count()}")#
+    batch_size = args.batch_size
+    if torch.cuda.device_count() > 1:#
+        monitor.log_and_print(f"Using {torch.cuda.device_count()} GPUs.\n")#
+        classifier = nn.DataParallel(classifier)#
+        batch_size = args.batch_size * torch.cuda.device_count()
+        monitor.log_and_print(f"Batch size multiplied with number of devices {torch.cuda.device_count()}, current batch size: {batch_size}")
+    classifier = classifier.to(device)
+    criterion = criterion.to(device)
+    print("--- DONE ---\n", flush=True)
+
     config = {
         'learning_rate': args.learning_rate,
-        'batch_size': args.batch_size,
+        'batch_size': batch_size,
         'max_epochs': args.max_epochs,
         'optimizer': 'Adam',
         'model_type': 'pointnet2_cls_ssg',
@@ -107,31 +129,12 @@ def main(args):
         else:
             print("No WandB API key provided, WandB is disabled.\n", flush=True)
 
-    # Load model
-    print("### Load PointNet++ ssg model ###\n", flush=True)
-    sys.path.append(os.path.join(root_dir, 'models','Pointnet_Pointnet2_pytorch', 'models'))
-    model = importlib.import_module('pointnet2_cls_ssg')
-    classifier = model.get_model(256, normal_channel=False)
-    criterion = model.get_loss_mse()
-    classifier.apply(inplace_relu)
-    
-    ## Cuda
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    monitor.log_and_print(f"Using device: {device}\n")
-    monitor.log_and_print(f"Number of devices: {torch.cuda.device_count()}")#
-    if torch.cuda.device_count() > 1:#
-        monitor.log_and_print(f"Using {torch.cuda.device_count()} GPUs.\n")#
-        classifier = nn.DataParallel(classifier)#
-    classifier = classifier.to(device)
-    criterion = criterion.to(device)
-    print("--- DONE ---\n", flush=True)
-
     # Load data
     num_workers = 0 if device.type == 'cpu' else 8
     train_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'train')
-    train_dataloader = DataLoader(train_dataset, batch_size = args.batch_size, num_workers = num_workers, shuffle = True)
+    train_dataloader = DataLoader(train_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = True)
     val_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'validation')
-    val_dataloader = DataLoader(val_dataset, batch_size = args.batch_size, num_workers = num_workers, shuffle = False)
+    val_dataloader = DataLoader(val_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = False)
     monitor.log(f"Train set: {len(train_dataloader)}, Validation set: {len(val_dataloader)}")
 
     ## Optimizer
