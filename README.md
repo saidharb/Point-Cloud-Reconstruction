@@ -68,8 +68,9 @@ $ python code/train.py
 | `--verbose`        | `bool`  | `False`      | Output per batch metrics                                                   |
 | `--wandb`          | `bool`  | `False`      | Enable WandB tracking                                                      |
 | `--name`           | `str`   | `'test_run'` | Name of WandB run                                                          |
+| `--output_dir`     | `str`   | required     | Name of of the model save directory relative to root directory             |
 
-The training script will create a directory `models/trained_models` where all training runs are saved including the best model, checkpoint models, logging information and a csv file containing the metrics. The learning rate will be halfed, if the validation loss did not decrease for the number of epochs specified in `lr_patience`.
+The training script will create a directory `models/trained_models` where all training runs are saved including the best and last model, checkpoint models, logging information and a csv file containing the metrics. The learning rate will be halfed, if the validation loss did not decrease for the number of epochs specified in `lr_patience`.
 
 ### Test PointNet++
 You can test the performance of PointNet++ to encode point clouds into the same latent space as the CAD-sequences using the `code/test.py` script:
