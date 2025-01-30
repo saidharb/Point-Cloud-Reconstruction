@@ -27,6 +27,7 @@ __pycache__/
 
 # WandB
 wandb/
+models/trained_models/**/*.txt
 
 # CSV-files
 **/*.csv
