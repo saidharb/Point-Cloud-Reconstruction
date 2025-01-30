@@ -8,7 +8,7 @@ import csv
 
 import torch
 from torch.utils.data import DataLoader
-import torch.nn as nn #
+import torch.nn as nn 
 import wandb
 
 from dataset import PointCloudEmbeddingDataset
@@ -122,10 +122,10 @@ def main(args):
     monitor.log_and_print(f"Using device: {device}\n")
     monitor.log_and_print(f"Number of devices: {torch.cuda.device_count()}")#
     batch_size = args.batch_size
-    if torch.cuda.device_count() > 1:#
+    if torch.cuda.device_count() > 1:
         monitor.log_and_print(f"Using {torch.cuda.device_count()} GPUs.\n")#
-        classifier = nn.DataParallel(classifier)#
-        batch_size = args.batch_size * torch.cuda.device_count()
+        classifier = nn.DataParallel(classifier)
+        batch_size *= torch.cuda.device_count()
         monitor.log_and_print(f"Batch size multiplied with number of devices {torch.cuda.device_count()}, current batch size: {batch_size}")
     classifier = classifier.to(device)
     criterion = criterion.to(device)
