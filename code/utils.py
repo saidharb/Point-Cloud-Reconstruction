@@ -74,6 +74,7 @@ class EarlyStopping():
 
     def __init__(self, config, logger, save_dir, cont = False):
         self.max_epochs = config['early_stopping']
+        self.running_epoch = 0
         self.epoch = 0
         self.best_loss = float('inf')
         self.best_epoch = 0
@@ -84,17 +85,18 @@ class EarlyStopping():
             self.epoch = len(data_dict['epoch'])
             self.best_loss = max(data_dict['val_mse'])
             self.best_epoch = data_dict['val_mse'].index(max(data_dict['val_mse']))
+            self.running_epoch = self.epoch - self.best_epoch
 
 
     def update(self, loss):
         if loss < self.best_loss:
             self.best_epoch = self.epoch
-            self.epoch = 0
+            self.running_epoch = 0
             self.best_loss = loss
         else:
-            self.epoch += 1
-    
-        if self.epoch == self.max_epochs:
+            self.running_epoch += 1
+        self.epoch += 1
+        if self.running_epoch == self.max_epochs:
             self.logger.log_and_print(f"Early stopping: Validation loss did not decrease for {self.max_epochs} epochs "
                                       f"from {self.best_loss:.8f} since epoch {self.best_epoch + 1}.")
             return True
