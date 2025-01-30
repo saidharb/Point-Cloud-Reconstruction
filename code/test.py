@@ -81,6 +81,7 @@ def main(args):
     # Check if model has been saved wrapped in nn.DataParallel (only in fourth official run),
     # after that I fixed it
     if 'module.' in next(iter(state_dict)):#
+        monitor.log_and_print("Model was saved wrapped in nn.DataParallel.\nRemoving 'module.' from state dict.")
         state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}#
     classifier.load_state_dict(state_dict)
     monitor.log_and_print(f'\nLoaded state dict from {os.path.abspath(args.model_path)}.')
@@ -143,3 +144,6 @@ def main(args):
 if __name__ == '__main__':
     args = parse_args()
     main(args)
+
+# TODO
+# eventuell noch in test_metrics.csv die beste trainings epoche metrics einfügen
