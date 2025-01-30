@@ -162,7 +162,7 @@ class LearningRateScheduler():
             self.best_loss = loss
 
         if self.running_patience == 0:
-            if self.get_current_learning_rate() > self.min_lr:
+            if self.get_current_learning_rate() * self.factor > self.min_lr:
                 self.logger.log_and_print(f"No decrease in validation loss since {self.patience} epochs.\n"
                             f"Reducing learning rate from {self.get_current_learning_rate()} to "
                             f"{self.get_current_learning_rate() * self.factor}.")
@@ -170,8 +170,9 @@ class LearningRateScheduler():
                 self.running_patience = self.patience
             else:
                 self.logger.log_and_print(f"Reducing learning rate {self.get_current_learning_rate()} "
-                                          f"by a factor of {self.factor} would exceed minimum learning "
-                                          f"rate of {self.min_lr}.")
+                                          f"by a factor of {self.factor} results in a learning rate of "
+                                          f"{self.get_current_learning_rate() * self.factor} which is "
+                                          "below the minimum learning rate of {self.min_lr}.")
         
 
 
