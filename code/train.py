@@ -14,7 +14,7 @@ import wandb
 from dataset import PointCloudEmbeddingDataset
 from models.Pointnet_Pointnet2_pytorch import provider
 from metrics import RegressionRunningScore
-from utils import SaveBestModel, EarlyStopping, Logger, LearningRateScheduler
+from utils import SaveBestModel, EarlyStopping, Logger, LearningRateStepScheduler
 
 # torch.manual_seed(42)
         
@@ -192,7 +192,7 @@ def main(args):
         weight_decay=1e-4
         )
     
-    scheduler = LearningRateScheduler(optimizer, 0.5, args.lr_patience, monitor, save_dir, cont = continue_training)
+    scheduler = LearningRateStepScheduler(optimizer, 0.5, args.lr_patience, monitor, save_dir, cont = continue_training)
 
     scores_train = RegressionRunningScore(len(train_dataloader), save_dir, phase = 'train', cont = continue_training)
     scores_val = RegressionRunningScore(len(val_dataloader), save_dir, phase = 'validation', cont = continue_training)
@@ -320,28 +320,26 @@ if __name__ == '__main__':
     main(args)
 
 
-# FIX
-# Learning rate 
-# maybe remove try exception statement for table add if it works in the next run
-
-
-
 
 # BEFORE FRIDAY ENDS:
 # - Start at least one new training with better learning rate, maybe msg model
 
 # NEXT:
+# maybe remove try exception statement for table add if it works in the next run
 # Why does import into pipeline work now that I appended sys.path? Find out exactly why
-# check if validation data is correct
-# - Tune learning rate hyperparameter 
+
+# 2 new trainigns:
+# one with cosine annealing with warm startup and one with tuned lrStepOnPlateeau
+# Tune learning rate hyperparameter 
 # (look at convergence of loss for that) (too high?)
 # reduce patience? 
-# Cosine annealing?
+
 # - maybe use msg model? -> in this case first check how to identify which model was used (config file/log file?)
 # maybe train DeepCAD myself?
 # Write pipeline PC->PN++->z->DeepCAD->step --> Thereby check data integrity
 
 # README
 # Envirnonment req.txt for DeepCAD
+# wandb for testing
 
 

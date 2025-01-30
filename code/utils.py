@@ -1,6 +1,7 @@
 import os
 import time
 import logging
+import math
 
 import torch
 import torch.nn as nn 
@@ -126,7 +127,7 @@ class Logger():
     def log(self, information):
         self.logger.info(information)
 
-class LearningRateScheduler():
+class LearningRateStepScheduler():
 
     def __init__(self, optimizer, factor, patience, logger, save_dir, cont = False):
         self.optimizer = optimizer
@@ -182,7 +183,55 @@ class LearningRateScheduler():
                                           "below the minimum learning rate of {self.min_lr}.")
         
 
+class CosineAnnealWarmRestart():
+    def __init__(self, optimizer, T_0, T_mult = 1, lr_min = 0.0, cont = False):
+        self.optimizer = optimizer
+        self.T_0 = T_0 
+        self.T_mult = T_mult
+        self.lr_min = lr_min
+        self.T_cur = 0 # current epoch
+        self.initial_lr = 0.001
+        self.lr_history = []
+        if cont:
+            pass
 
+    def get_current_learning_rate(self):
+        return self.optimizer.param_groups[0]['lr']
+    
+    def set_new_learning_rate(self, historic_lr = None):
+        # current_lr = self.get_current_learning_rate()
+        new_lr = self.compute_lr()
+        if historic_lr:
+            for param_group in self.optimizer.param_groups:
+                param_group['lr'] = historic_lr
+        else:
+            for param_group in self.optimizer.param_groups:
+                param_group['lr'] = new_lr
+
+    def compute_lr(self):
+        """Compute learning rate using the cosine formula."""
+        lr = self.lr_min + (self.initial_lr - self.lr_min) * (1 + math.cos(math.pi * self.T_cur / self.T_0)) / 2
+        return lr
+    
+    def get_lr_history(self):
+        return self.lr_history
+
+    def update(self):
+        self.T_cur += 1
+        if self.T_cur >= self.T_0:
+            self.T_cur = 0
+            self.T_0 *= self.T_mult  # Increase cycle length if T_mult > 1
+            self.initial_lr *= 0.5
+        new_lrs = self.compute_lr()
+        return new_lrs
+    
+# Mach es so, dass Step und Cosine beide subclasses von einer class sind
+# Fine heraus was jede funktion in step macht und mach jede funktion in cosine dass sie das selbe macht
+# somit musst du den Hauptcode kaum ändern
+# die parent class damit es auch formal stimmt (schauen wo vereinfacht werden kann)
+
+
+    
 
 
         

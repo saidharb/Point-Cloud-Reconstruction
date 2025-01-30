@@ -171,4 +171,4 @@ if __name__ == '__main__':
     main(args)
 
 # TODO
-# eventuell noch in test_metrics.csv die beste trainings epoche metrics einfügen
+# eventuell noch in test_metrics.csv die beste trainings epoche metrics einfügen (wandb)
