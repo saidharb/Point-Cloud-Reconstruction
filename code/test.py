@@ -6,6 +6,7 @@ import time
 import csv
 
 import torch
+import torch.nn as nn 
 from torch.utils.data import DataLoader
 
 from dataset import PointCloudEmbeddingDataset
@@ -34,7 +35,7 @@ def inplace_relu(m):
 
 def save_test_metrics(*lists, save_path = ""):
     headers = ['mse', 'rmse', 'mae']
-    with open(os.path.join(save_path, 'test_metrics.csv'), mode='w', newline='', encoding='utf-8') as file:
+    with open(os.path.join(os.path.dirname(save_path), 'test_metrics_' + os.path.basename(save_path) + '.csv'), mode='w', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
         writer.writerow(headers)
         for row in zip(*lists):
@@ -78,19 +79,29 @@ def main(args):
     # Load saved model
     state_dict = saved_model['model_state_dict']
     classifier.load_state_dict(state_dict)
-    classifier = classifier.to(device)
-    criterion = criterion.to(device)
     monitor.log_and_print(f'\nLoaded state dict from {os.path.abspath(args.model_path)}.')
 
+    monitor.log_and_print(f"Using device: {device}\n")
+    monitor.log_and_print(f"Number of devices: {torch.cuda.device_count()}")
+    batch_size = args.batch_size
+    if torch.cuda.device_count() > 1:
+        monitor.log_and_print(f"Using {torch.cuda.device_count()} GPUs.\n")#
+        classifier = nn.DataParallel(classifier)
+        batch_size *= torch.cuda.device_count()
+        monitor.log_and_print(f"Batch size multiplied with number of devices {torch.cuda.device_count()}, current batch size: {batch_size}")
+    classifier = classifier.to(device)
+    criterion = criterion.to(device)
+    
+
     # Data
-    num_workers = 0 if device.type == 'cpu' else 4
+    num_workers = 0 if device.type == 'cpu' else 8
     test_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'test')
-    test_dataloader = DataLoader(test_dataset, batch_size = args.batch_size, num_workers = num_workers, shuffle = False)
+    test_dataloader = DataLoader(test_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = False)
     monitor.log(f"Length test set: {len(test_dataloader)}\n")
     monitor.log_and_print(f"Using device: {device}\n")
 
     # Metrics
-    scores_test = RegressionRunningScore(len(test_dataloader))
+    scores_test = RegressionRunningScore(len(test_dataloader), model_dir)
 
     # Testing
     classifier.eval()
@@ -119,7 +130,7 @@ def main(args):
                           f"Avg. RMSE: {scores_test.get_epoch_rmse(0):.8f} --- "
                           f"Avg. MAE: {scores_test.get_epoch_mae(0):.8f}")
     save_test_metrics(*scores_test.get_metrics_list(), 
-                     save_path = model_dir)
+                     save_path = args.model_path)
     duration = round((time.time() - start_time) / 60.0, 2)
     monitor.log_and_print(f"Test time in minutes: {duration}")
 
