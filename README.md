@@ -77,7 +77,7 @@ You can test the performance of PointNet++ to encode point clouds into the same 
 ```bash
 $ python code/test.py --model_path <path/to/model/from/root>
 ```
-The script will create a `test.log` and a `test_metrics.csv` file within the particular models directory saving the test metrics (MSE, RMSE, MAE).
+The script will create a `test.log` and a `test_metrics_<model_name>.csv` file within the particular models directory saving the test metrics (MSE, RMSE, MAE).
 | Argument           | Type    | Default      | Description                                                                 |
 |--------------------|---------|--------------|-----------------------------------------------------------------------------|
 | `--data_root`      | `str`   | `'data'`     | Data directory relative to root directory                                   |
