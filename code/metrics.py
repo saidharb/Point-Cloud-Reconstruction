@@ -60,3 +60,7 @@ class RegressionRunningScore():
     
     def get_epoch_mae(self, epoch):
         return self.mae[epoch]
+    
+    def get_best_model_metrics(self):
+        best_epoch = self.mse.index(max(self.mse))
+        return self.mse[best_epoch], self.rmse[best_epoch], self.mae[best_epoch]

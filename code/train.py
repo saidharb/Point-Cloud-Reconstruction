@@ -170,6 +170,7 @@ def main(args):
                 with open(run_id_file, "w") as f:
                     f.write(run_id)
                 print(f"New WandB run started with ID: {run_id}\n", flush=True)
+            table = wandb.Table(columns=["train_mse", "train_rmse", "train_mae", "val_mse", "val_rmse", "val_mae"])
         else:
             print("No WandB API key provided, WandB is disabled.\n", flush=True)
 
@@ -232,8 +233,8 @@ def main(args):
                     f"RMSE: {scores_train.get_batch_rmse(loss_train):.8f} --- "
                     f"MAE: {scores_train.get_batch_mae(pred, latent_rep):.8f}", flush=True)
 
-            if i == 2:
-                break
+            # if i == 2:
+            #     break
 
         scores_train.epoch_finished()
 
@@ -261,8 +262,8 @@ def main(args):
                         f"RMSE: {scores_val.get_batch_rmse(loss_val):.8f} --- "
                         f"MAE: {scores_val.get_batch_mae(pred, latent_rep):.8f}", flush=True)
 
-                if j == 2:
-                    break
+                # if j == 2:
+                #     break
         
         epoch_duration = (time.time() - epoch_start_time) / 60.0
         scores_val.epoch_finished()
@@ -301,6 +302,11 @@ def main(args):
                      epoch = epoch)
 
         if early_stopping.update(scores_val.get_epoch_mse(epoch)):
+            if args.wandb:
+                try:
+                    table.add_data(*scores_train.get_best_model_metrics(), *scores_val.get_best_model_metrics())
+                except Exception as e:
+                    monitor.log_and_print(e)
             break
 
         print("", flush=True)
@@ -315,19 +321,8 @@ if __name__ == '__main__':
 
 
 # FIX
-# Splitting up the load on multiple GPU's works!
-# However, the batch size needs to be adapted and possibly the number of workers if gpu's are available
-# CRITICAL: The cluster kicks me out at some points,
-# and when I am let back into the cluster, the training script is run again!
-# Therefore a new model is trained and the former one is abandonend
-# Implement a "last.pth" model and something like a project dir, so that when a job is started and paused, 
-# it will revert to continuing training the last model in the same directory  
 # Learning rate 
-# metrics done
-# save best model
-# wandb
-# logger 
-# early stopping done
+# maybe remove try exception statement for table add if it works in the next run
 
 
 
