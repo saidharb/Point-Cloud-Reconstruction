@@ -8,6 +8,7 @@ import csv
 import torch
 import torch.nn as nn 
 from torch.utils.data import DataLoader
+import wandb
 
 from dataset import PointCloudEmbeddingDataset
 from metrics import RegressionRunningScore
@@ -26,6 +27,7 @@ def parse_args():
     parser.add_argument('--verbose', action='store_true', default=False, help='output per batch metrics')
     parser.add_argument('--model_path', type=str, required=True, help='path to the trained model')
     parser.add_argument('--batch_size', type=int, default=24, help='batch size')
+    parser.add_argument('--wandb', action='store_true', default=False, help='enable WandB tracking')
     return parser.parse_args()
     
 def inplace_relu(m):
@@ -96,6 +98,25 @@ def main(args):
         monitor.log_and_print(f"Batch size multiplied with number of devices {torch.cuda.device_count()}, current batch size: {batch_size}")
     classifier = classifier.to(device)
     criterion = criterion.to(device)
+
+    if args.wandb:
+        monitor.log_and_print("### WANDB ###\n")
+        if os.getenv("WANDB_API_KEY"):
+            monitor.log_and_print("Logging into WandB...\n")
+            wandb.login(key=os.getenv("WANDB_API_KEY"))
+
+            run_id_file = os.path.join(model_dir, "wandb_run_id.txt")
+            if os.path.exists(run_id_file):
+                with open(run_id_file, "r") as f:
+                    run_id = f.read().strip()
+                monitor.log_and_print(f"Resuming WandB run with ID: {run_id}\n")
+                wandb.init(project='Master Thesis',
+                        id=run_id,
+                        resume="allow",
+                        config=config)
+            table = wandb.Table(columns=["test_mse", "test_rmse", "test_mae"])
+        else:
+            monitor.log_and_print("No WandB API key provided, WandB is disabled.\n")
     
 
     # Data
@@ -134,6 +155,10 @@ def main(args):
                           f"Avg. Loss/MSE: {scores_test.get_epoch_mse(0):.8f} --- "
                           f"Avg. RMSE: {scores_test.get_epoch_rmse(0):.8f} --- "
                           f"Avg. MAE: {scores_test.get_epoch_mae(0):.8f}")
+    if args.wandb:
+        table.add_data(scores_test.get_epoch_mse(0), scores_test.get_epoch_rmse(0), scores_test.get_epoch_mae(0))
+        wandb.log({"test_results": table})
+        wandb.finish()
     save_test_metrics(*scores_test.get_metrics_list(), 
                      save_path = args.model_path)
     duration = round((time.time() - start_time) / 60.0, 2)
