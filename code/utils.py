@@ -3,6 +3,7 @@ import time
 import logging
 
 import torch
+import torch.nn as nn 
 import pandas as pd
 
 class SaveBestModel():
@@ -27,6 +28,18 @@ class SaveBestModel():
             self.best_epoch = data_dict['val_mse'].index(max(data_dict['val_mse']))
             self.start_time = time.time() - config['training_time_min'] * 60.0 
 
+    def create_checkpoint(self, model):
+        if isinstance(model, nn.DataParallel):
+            checkpoint = {
+                'model_state_dict': model.module.state_dict(),
+                'config': self.config
+            }
+        else:
+            checkpoint = {
+                'model_state_dict': model.state_dict(),
+                'config': self.config
+            }     
+        return checkpoint 
 
     def update(self, val_loss, epoch, model):
         
@@ -37,11 +50,9 @@ class SaveBestModel():
                                       f"{checkpoint_path}")
             self.config['final_epoch'] = self.current_epoch + 1
             self.config['training_time_min'] = round((time.time() - self.start_time) / 60.0, 2)
-            checkpoint = {
-                'model_state_dict': model.state_dict(),
-                'config': self.config
-            }
+            checkpoint = self.create_checkpoint(model)
             torch.save(checkpoint, checkpoint_path)
+
         
         best_model_bool = val_loss < self.best_val_loss
         if best_model_bool:
@@ -53,19 +64,13 @@ class SaveBestModel():
             self.logger.log_and_print(f"Saving model to: {os.path.abspath(self.best_model_path)}")
             self.config['final_epoch'] = self.current_epoch + 1
             self.config['training_time_min'] = round((time.time() - self.start_time) / 60.0, 2)
-            checkpoint = {
-                'model_state_dict': model.state_dict(),
-                'config': self.config
-            }
+            checkpoint = self.create_checkpoint(model)
             torch.save(checkpoint, self.best_model_path)
 
         last_path = os.path.abspath(os.path.join(self.save_dir, f'last.pth'))
         self.config['final_epoch'] = self.current_epoch + 1
         self.config['training_time_min'] = round((time.time() - self.start_time) / 60.0, 2)
-        checkpoint = {
-                'model_state_dict': model.state_dict(),
-                'config': self.config
-            }
+        checkpoint = self.create_checkpoint(model)
         torch.save(checkpoint, last_path)
 
         self.current_epoch += 1

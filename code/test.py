@@ -78,6 +78,10 @@ def main(args):
 
     # Load saved model
     state_dict = saved_model['model_state_dict']
+    # Check if model has been saved wrapped in nn.DataParallel (only in fourth official run),
+    # after that I fixed it
+    if 'module.' in next(iter(state_dict)):#
+        state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}#
     classifier.load_state_dict(state_dict)
     monitor.log_and_print(f'\nLoaded state dict from {os.path.abspath(args.model_path)}.')
 
