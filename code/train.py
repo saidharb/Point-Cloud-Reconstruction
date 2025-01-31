@@ -14,8 +14,8 @@ import wandb
 from dataset import PointCloudEmbeddingDataset
 from models.Pointnet_Pointnet2_pytorch import provider
 from metrics import RegressionRunningScore
-from utils import SaveBestModel, EarlyStopping, Logger, LearningRateStepScheduler, CosineAnnealWarmRestart
-
+from utils import SaveBestModel, EarlyStopping, Logger, LearningRateStepScheduler
+from LRSchedulers import CosineAnnealWarmRestart
 # torch.manual_seed(42)
         
 def parse_args():
@@ -202,17 +202,16 @@ def main(args):
                                               args.lr_patience, 
                                               monitor, 
                                               save_dir, 
-                                              cont = continue_training)
+                                              cont=continue_training)
     elif args.lr_type == 'cosine':
         scheduler = CosineAnnealWarmRestart(optimizer, 
                                             monitor, 
                                             save_dir, 
                                             T_0=20, 
                                             T_mult=1.5, 
-                                            initial_lr=args.learning_rate, 
                                             factor = 0.8, 
-                                            lr_min=1e-7, 
-                                            cont = continue_training)
+                                            min_lr=1e-7, 
+                                            cont=continue_training)
 
     scores_train = RegressionRunningScore(len(train_dataloader), save_dir, phase = 'train', cont = continue_training)
     scores_val = RegressionRunningScore(len(val_dataloader), save_dir, phase = 'validation', cont = continue_training)
