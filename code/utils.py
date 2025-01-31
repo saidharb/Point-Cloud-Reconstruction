@@ -2,6 +2,7 @@ import os
 import time
 import logging
 import math
+import json
 
 import torch
 import torch.nn as nn 
@@ -191,23 +192,32 @@ class LearningRateStepScheduler():
 class CosineAnnealWarmRestart():
     def __init__(self, optimizer, logger, save_dir, T_0=20, T_mult = 10, initial_lr=0.001, lr_min = 0.0, factor = 1.0, cont = False):
         self.optimizer = optimizer
+        self.logger = logger
+
         self.T_0 = T_0 # Num epochs first cycle
         self.T_mult = T_mult # Factor to increase cycle length after each restart
-        self.lr_min = lr_min 
         self.T_cur = 0 # Epoch within current cycle
-        self.initial_lr = initial_lr
-        self.logger = logger
         self.factor = factor # factor that decreases max learning rate per restart
+
+        self.lr_min = lr_min 
+        self.initial_lr = initial_lr
+        
         self.lr_history = []
-        self.lr_history.append(self.initial_lr)
+        self.save_dir = save_dir
+        self.json_save_path = os.path.join(self.save_dir, "scheduler_state.json")
+
+        self.cont = cont
+
         if cont:
-            df = pd.read_csv(os.path.join(save_dir, 'metrics.csv'))
-            data_dict = df.to_dict(orient = 'list')
-            self.lr_history = data_dict['learning_rate']
-            self.set_new_learning_rate(historic_lr = self.lr_history[-1])
+            self.load_state()
+            self.update_state()
 
     def get_current_learning_rate(self):
         return self.optimizer.param_groups[0]['lr']
+    
+    def compute_lr(self):
+        lr = self.lr_min + (self.initial_lr - self.lr_min) * (1 + math.cos(math.pi * self.T_cur / self.T_0)) / 2
+        return lr
     
     def set_new_learning_rate(self, historic_lr = None):
         new_lr = self.compute_lr()
@@ -217,17 +227,35 @@ class CosineAnnealWarmRestart():
         else:
             for param_group in self.optimizer.param_groups:
                 param_group['lr'] = new_lr
-
-    def compute_lr(self):
-        """Compute learning rate using the cosine formula."""
-        lr = self.lr_min + (self.initial_lr - self.lr_min) * (1 + math.cos(math.pi * self.T_cur / self.T_0)) / 2
-        return lr
     
     def get_lr_history(self):
         return self.lr_history
+    
+    def save_state(self):
+        state = {
+            "T_0": self.T_0,
+            "T_cur": self.T_cur,
+            "lr_history": self.lr_history,
+            "initial_lr": self.initial_lr
+        }
+        with open(self.json_save_path, "w") as f:
+            json.dump(state, f)
+
+    def load_state(self):
+        with open(self.json_save_path, "r") as f:
+            state = json.load(f)
+        self.T_0 = state.get("T_0", 0)
+        self.T_cur = state.get("T_cur", [])
+        self.lr_history = state.get("lr_history")
+        self.initial_lr = state.get("initial_lr", 0.001)
 
     def update(self, val_loss):
         self.lr_history.append(self.get_current_learning_rate())
+        self.save_state()
+        print(self.lr_history)
+        self.update_state()
+
+    def update_state(self):
         self.T_cur += 1
         if self.T_cur >= self.T_0:
             self.logger.log_and_print(f"Warm Restart of learning rate after {self.T_0} epochs "
@@ -235,8 +263,8 @@ class CosineAnnealWarmRestart():
             self.T_cur = 0
             self.T_0 *= self.T_mult  # Increase cycle length if T_mult > 1
             self.initial_lr *= self.factor
-            
         self.set_new_learning_rate()
+
     
 # Mach es so, dass Step und Cosine beide subclasses von einer class sind
 # Fine heraus was jede funktion in step macht und mach jede funktion in cosine dass sie das selbe macht
@@ -244,6 +272,7 @@ class CosineAnnealWarmRestart():
 # die parent class damit es auch formal stimmt (schauen wo vereinfacht werden kann)
 
 # FIX:
+# Create something like a state dict, which saves the scheduler metrics 
 
 
     

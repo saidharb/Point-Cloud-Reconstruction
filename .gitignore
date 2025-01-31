@@ -46,3 +46,6 @@ src/
 
 # h5 files
 **/*.h5
+
+# json
+**/*.json

@@ -253,8 +253,8 @@ def main(args):
                     f"RMSE: {scores_train.get_batch_rmse(loss_train):.8f} --- "
                     f"MAE: {scores_train.get_batch_mae(pred, latent_rep):.8f}", flush=True)
 
-            # if i == 1:
-            #     break
+            if i == 1:
+                break
 
         scores_train.epoch_finished()
 
@@ -282,8 +282,8 @@ def main(args):
                         f"RMSE: {scores_val.get_batch_rmse(loss_val):.8f} --- "
                         f"MAE: {scores_val.get_batch_mae(pred, latent_rep):.8f}", flush=True)
 
-                # if j == 1:
-                #     break
+                if j == 1:
+                    break
         
         epoch_duration = (time.time() - epoch_start_time) / 60.0
         scores_val.epoch_finished()
