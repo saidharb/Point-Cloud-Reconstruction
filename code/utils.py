@@ -219,14 +219,10 @@ class CosineAnnealWarmRestart():
         lr = self.lr_min + (self.initial_lr - self.lr_min) * (1 + math.cos(math.pi * self.T_cur / self.T_0)) / 2
         return lr
     
-    def set_new_learning_rate(self, historic_lr = None):
+    def set_new_learning_rate(self):
         new_lr = self.compute_lr()
-        if historic_lr:
-            for param_group in self.optimizer.param_groups:
-                param_group['lr'] = historic_lr
-        else:
-            for param_group in self.optimizer.param_groups:
-                param_group['lr'] = new_lr
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = new_lr
     
     def get_lr_history(self):
         return self.lr_history
