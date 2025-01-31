@@ -148,14 +148,17 @@ class LearningRateStepScheduler():
         return self.optimizer.param_groups[0]['lr']
     
     def set_new_learning_rate(self, historic_lr = None):
-        current_lr = self.get_current_learning_rate()
-        new_lr = current_lr * self.factor
+        new_lr = self.compute_lr()
         if historic_lr:
             for param_group in self.optimizer.param_groups:
                 param_group['lr'] = historic_lr
         else:
             for param_group in self.optimizer.param_groups:
                 param_group['lr'] = new_lr
+
+    def compute_lr(self):
+        lr = self.get_current_learning_rate() * self.factor
+        return lr
 
     def get_lr_history(self):
         return self.lr_history
@@ -181,25 +184,32 @@ class LearningRateStepScheduler():
                                           f"by a factor of {self.factor} results in a learning rate of "
                                           f"{self.get_current_learning_rate() * self.factor} which is "
                                           "below the minimum learning rate of {self.min_lr}.")
+                
+                # FIX: when abbruch geht mit der richtigen weiter?
         
 
 class CosineAnnealWarmRestart():
-    def __init__(self, optimizer, T_0, T_mult = 1, lr_min = 0.0, cont = False):
+    def __init__(self, optimizer, logger, save_dir, T_0=20, T_mult = 10, initial_lr=0.001, lr_min = 0.0, factor = 1.0, cont = False):
         self.optimizer = optimizer
-        self.T_0 = T_0 
-        self.T_mult = T_mult
-        self.lr_min = lr_min
-        self.T_cur = 0 # current epoch
-        self.initial_lr = 0.001
+        self.T_0 = T_0 # Num epochs first cycle
+        self.T_mult = T_mult # Factor to increase cycle length after each restart
+        self.lr_min = lr_min 
+        self.T_cur = 0 # Epoch within current cycle
+        self.initial_lr = initial_lr
+        self.logger = logger
+        self.factor = factor # factor that decreases max learning rate per restart
         self.lr_history = []
+        self.lr_history.append(self.initial_lr)
         if cont:
-            pass
+            df = pd.read_csv(os.path.join(save_dir, 'metrics.csv'))
+            data_dict = df.to_dict(orient = 'list')
+            self.lr_history = data_dict['learning_rate']
+            self.set_new_learning_rate(historic_lr = self.lr_history[-1])
 
     def get_current_learning_rate(self):
         return self.optimizer.param_groups[0]['lr']
     
     def set_new_learning_rate(self, historic_lr = None):
-        # current_lr = self.get_current_learning_rate()
         new_lr = self.compute_lr()
         if historic_lr:
             for param_group in self.optimizer.param_groups:
@@ -216,19 +226,24 @@ class CosineAnnealWarmRestart():
     def get_lr_history(self):
         return self.lr_history
 
-    def update(self):
+    def update(self, val_loss):
+        self.lr_history.append(self.get_current_learning_rate())
         self.T_cur += 1
         if self.T_cur >= self.T_0:
+            self.logger.log_and_print(f"Warm Restart of learning rate after {self.T_0} epochs "
+                                      f"to {self.initial_lr * self.factor}.")
             self.T_cur = 0
             self.T_0 *= self.T_mult  # Increase cycle length if T_mult > 1
-            self.initial_lr *= 0.5
-        new_lrs = self.compute_lr()
-        return new_lrs
+            self.initial_lr *= self.factor
+            
+        self.set_new_learning_rate()
     
 # Mach es so, dass Step und Cosine beide subclasses von einer class sind
 # Fine heraus was jede funktion in step macht und mach jede funktion in cosine dass sie das selbe macht
 # somit musst du den Hauptcode kaum ändern
 # die parent class damit es auch formal stimmt (schauen wo vereinfacht werden kann)
+
+# FIX:
 
 
     
