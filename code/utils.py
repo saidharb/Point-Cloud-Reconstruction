@@ -111,14 +111,12 @@ class EarlyStopping():
     
 class Logger():
     def __init__(self, save_dir, phase):
-        self.logger = logging.getLogger("Training")
+        self.logger = logging.getLogger(phase)
         self.logger.setLevel(logging.INFO)
-        log_name = "train" if phase == 'train' else 'test'
+        log_name = phase
         file_handler = logging.FileHandler(os.path.abspath(os.path.join(save_dir, log_name + ".log")))
         file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
         self.logger.addHandler(file_handler)
-        if phase == 'test':
-            self.logger.info(f"### TEST STARTED ###\n")
         self.log_and_print(f"Save directory: {save_dir}\n")
 
     def log_and_print(self, information):
