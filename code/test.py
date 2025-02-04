@@ -171,4 +171,5 @@ if __name__ == '__main__':
     main(args)
 
 # TODO
+# MOVE to main directory...
 # eventuell noch in test_metrics.csv die beste trainings epoche metrics einfügen (wandb)

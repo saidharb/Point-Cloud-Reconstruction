@@ -339,25 +339,26 @@ if __name__ == '__main__':
 
 
 
-# BEFORE FRIDAY ENDS:
-# - Start at least one new training with better learning rate, maybe msg model
 
-# NEXT:
-# maybe remove try exception statement for table add if it works in the next run
-# Why does import into pipeline work now that I appended sys.path? Find out exactly why
 
+# TODO
 # 2 new trainigns:
 # one with cosine annealing with warm startup and one with tuned lrStepOnPlateeau
 # Tune learning rate hyperparameter 
 # (look at convergence of loss for that) (too high?)
 # reduce patience? 
+# msg model?
+# MOVE to main directory...
 
+# PIPELINE
 # - maybe use msg model? -> in this case first check how to identify which model was used (config file/log file?)
 # maybe train DeepCAD myself?
 # Write pipeline PC->PN++->z->DeepCAD->step --> Thereby check data integrity
+# Why does import into pipeline work now that I appended sys.path? Find out exactly why
 
 # README
 # Envirnonment req.txt for DeepCAD
 # wandb for testing
+# train.py cosine anneal und step LR
 
 

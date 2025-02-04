@@ -189,15 +189,3 @@ class LearningRateStepScheduler():
         
 # TODO
 # Transfer Step lr scheduler to new format
-
-
-    
-
-
-        
-            
-
-
-        
-
-    
