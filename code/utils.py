@@ -117,7 +117,7 @@ class Logger():
         file_handler = logging.FileHandler(os.path.abspath(os.path.join(save_dir, log_name + ".log")))
         file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
         self.logger.addHandler(file_handler)
-        self.log_and_print(f"Save directory: {save_dir}\n")
+        self.log_and_print(f"Save directory: {save_dir}")
 
     def log_and_print(self, information):
         print(information, flush=True)

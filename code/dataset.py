@@ -17,7 +17,7 @@ class PointCloudEmbeddingDataset(Dataset):
         self.root = root
         assert split in {'train', 'validation', 'test'}, f"Invalid split '{split}'. Valid options are: 'train', 'validation', 'test'"
         self.split = split
-        print(f"### Loading {self.split} dataset ###\n", flush=True)
+        print(f"Loading {self.split} dataset \n", flush=True)
         self.split_path = os.path.join(root, "train_val_test_split.json")
         self.pc_path = os.path.join(root, "pc_cad")
         self.latent_path = os.path.join(root, "latent/pretrained/results/all_zs_ckpt1000.h5")
