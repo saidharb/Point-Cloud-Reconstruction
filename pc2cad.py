@@ -132,8 +132,10 @@ def main(args):
                     break
     monitor.log_and_print("### DONE PC->z ###")
 
-    cfg = ConfigAE('test')
     # Load DeepCAD model
+    cfg = ConfigAE('test')
+    tr_agent = TrainerAE(cfg)
+    
 
 
     
@@ -150,10 +152,12 @@ if __name__ == '__main__':
 
 #       When using the DeepCAD model, make sure to check the latent representations
 #       if they are non zero
+#       Integrate command line arguments in configAE.py
 
 # TODO  README
 
 # TODO  CHANGELOG DeepCAD
 #       Adapted imports to new repo structure
-#       Manage command line arguments in all necessary files
+#       Manage command line arguments in configAE.py
 #       Removed tensorboard dependency
+#       Fixed abstract method by including ABC dependency
