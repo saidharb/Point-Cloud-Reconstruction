@@ -1,9 +1,9 @@
 import os
-from utils import ensure_dirs
+from models.DeepCAD.utils import ensure_dirs
 import argparse
 import json
 import shutil
-from cadlib.macro import *
+from models.DeepCAD.cadlib.macro import *
 
 
 class ConfigAE(object):
@@ -13,11 +13,34 @@ class ConfigAE(object):
         self.set_configuration()
 
         # init hyperparameters and parse from command-line
-        parser, args = self.parse()
+        #parser, args = self.parse()
+        args = {
+            "proj_dir": "../data/latent",
+            "data_root": "data",
+            "exp_name": 'pretrained',
+            "gpu_ids": "0",
+            "batch_size": 512,
+            "num_workers": 8,
+            "nr_epochs": 1000,
+            "lr": 1e-3,
+            "grad_clip": 1.0,
+            "warmup_step": 2000,
+            "cont": False,
+            "ckpt": 1000,
+            "vis": False,
+            "save_frequency": 500,
+            "val_frequency": 10,
+            "vis_frequency": 2000,
+            "augment": False,
+            # Additional arguments for non-training mode
+            "mode": None,
+            "outputs": None,
+            "z_path": None,
+        }
 
         # set as attributes
         print("----Experiment Configuration-----")
-        for k, v in args.__dict__.items():
+        for k, v in args.items():
             print("{0:20}".format(k), v)
             self.__setattr__(k, v)
 
@@ -34,8 +57,8 @@ class ConfigAE(object):
         ensure_dirs([self.log_dir, self.model_dir])
 
         # GPU usage
-        if args.gpu_ids is not None:
-            os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_ids)
+        if self.gpu_ids is not None:
+            os.environ["CUDA_VISIBLE_DEVICES"] = str(self.gpu_ids)
 
         # create soft link to experiment log directory
         # if not os.path.exists('train_log'):

@@ -124,10 +124,14 @@ def main(args):
                 z_dataset[start_idx:end_idx] = pred.cpu().numpy()
                 start_idx = end_idx
 
-                if i == 3:
+                if i == 2:
                     break
+    monitor.log_and_print("### DONE PC->z ###")
 
-    monitor.log_and_print("### DONE ###")
+    from models.DeepCAD.config.configAE import ConfigAE
+    cfg = ConfigAE('test')
+    # Load DeepCAD model
+
 
     
 
