@@ -1,11 +1,11 @@
 import torch
 import torch.optim as optim
 from tqdm import tqdm
-from model import CADTransformer
-from .base import BaseTrainer
-from .loss import CADLoss
-from .scheduler import GradualWarmupScheduler
-from cadlib.macro import *
+from models.DeepCAD.model import CADTransformer
+from models.DeepCAD.trainer.base import BaseTrainer
+from models.DeepCAD.trainer.loss import CADLoss
+from models.DeepCAD.trainer.scheduler import GradualWarmupScheduler
+from models.DeepCAD.cadlib.macro import *
 
 
 class TrainerAE(BaseTrainer):

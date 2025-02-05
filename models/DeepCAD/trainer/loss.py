@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from model.model_utils import _get_padding_mask, _get_visibility_mask
-from cadlib.macro import CMD_ARGS_MASK
+from models.DeepCAD.model.model_utils import _get_padding_mask, _get_visibility_mask
+from models.DeepCAD.cadlib.macro import CMD_ARGS_MASK
 
 
 class CADLoss(nn.Module):

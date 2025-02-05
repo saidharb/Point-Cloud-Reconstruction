@@ -4,9 +4,9 @@ import torch
 import torch.autograd as autograd
 import torch.optim as optim
 from tqdm import tqdm
-from .base import BaseTrainer
-from model.latentGAN import Discriminator, Generator
-from utils import cycle
+from models.DeepCAD.trainer.base import BaseTrainer
+from models.DeepCAD.model.latentGAN import Discriminator, Generator
+from models.DeepCAD.utils import cycle
 
 
 class TrainerLatentWGAN(BaseTrainer):

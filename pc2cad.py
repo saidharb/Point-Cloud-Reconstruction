@@ -15,6 +15,10 @@ from code.dataset import PointCloudEmbeddingDataset
 from code.metrics import RegressionRunningScore
 from code.utils import Logger
 
+from models.DeepCAD.config.configAE import ConfigAE
+from models.DeepCAD.trainer.trainerAE import TrainerAE
+
+
 def parse_args():
     '''PARAMETERS'''
     parser = argparse.ArgumentParser(
@@ -128,7 +132,6 @@ def main(args):
                     break
     monitor.log_and_print("### DONE PC->z ###")
 
-    from models.DeepCAD.config.configAE import ConfigAE
     cfg = ConfigAE('test')
     # Load DeepCAD model
 
@@ -149,3 +152,8 @@ if __name__ == '__main__':
 #       if they are non zero
 
 # TODO  README
+
+# TODO  CHANGELOG DeepCAD
+#       Adapted imports to new repo structure
+#       Manage command line arguments in all necessary files
+#       Removed tensorboard dependency
