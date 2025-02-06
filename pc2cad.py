@@ -11,7 +11,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 import numpy as np
 
-from code.dataset import PointCloudEmbeddingDataset
+from code.dataset import PointCloudEmbeddingSequenceDataset
 from code.metrics import RegressionRunningScore
 from code.utils import Logger
 
@@ -99,7 +99,7 @@ def main(args):
 
     # Data
     num_workers = 0 if device.type == 'cpu' else 8
-    dataset = PointCloudEmbeddingDataset(DATA_DIR, args.phase)
+    dataset = PointCloudEmbeddingSequenceDataset(DATA_DIR, args.phase)
     dataloader = DataLoader(dataset, batch_size = batch_size, num_workers = num_workers, shuffle = False)
     num_samples = len(dataset) # FIXME When infering from a directory adapt this dynamically
     
@@ -121,15 +121,18 @@ def main(args):
                                             shape=(num_samples, cfg.max_total_len, cfg.n_args + 1), 
                                             dtype=np.int64)
         start_idx = 0
+        pn_running_loss = 0.0
+        dc_running_loss = 0.0
 
         with torch.no_grad():
-            for i, (pc, latent_rep) in enumerate(dataloader):
+            for i, (pc, latent_rep, cad_seq, pc_path) in enumerate(dataloader):
                 
                 # PC -> z
                 pc, latent_rep = pc.to(device), latent_rep.to(device)
                 pc = pc.transpose(2, 1)
                 pred, _ = classifier(pc)
                 loss = criterion(pred,latent_rep)
+                pn_running_loss += loss.detach().cpu()
 
                 if args.verbose:
                     print(f"Batch {i + 1}/{len(dataloader)}: "
@@ -137,36 +140,55 @@ def main(args):
                 
                 pred = pred.unsqueeze(1) # CRITICAL: shape = (B,1,256), NOT (1,B,256) -> unsqueeze(1 not 0)
                 output = tr_agent.decode(pred)
+                # loss_dict = tr_agent.loss_func(output)
+                # for k, v in loss_dict.items():
+                #     print(f"{k}: {v.shape}")
                 batch_out_vec = tr_agent.logits2vec(output)
+                print(cad_seq[0])
+                print(pc_path[0])
 
                 end_idx = start_idx + pred.shape[0] # dynamic batch size
                 z_dataset[start_idx:end_idx] = pred.cpu().numpy()
                 cad_seq_dataset[start_idx:end_idx] = batch_out_vec
                 start_idx = end_idx
 
-                if i == 10:
+                if i == 2:
                     break
     monitor.log_and_print("### DONE PC->z ###")
-
+# PRÜFEN OB PC PATH UND CAD VEC PATH ÜBEREINSTIMMEN!!
 
 if __name__ == '__main__':
     args = parse_args()
     main(args)
 
-
+# NEXXXT: CAD seq target is now provided
 # TODO  Script should be able to infer train/val/test set
 #       But also one should be able to specify a dir with pointclouds inside
 #       Maybe there needs to be some differentiation if CAD sequence targets
 #       are available or not
+
+#       STIMMEN EIGENTLICH PC UND LATENT ÜBEREIN??
 
 #       When using the DeepCAD model, make sure to check the latent representations
 #       if they are non zero
 
 #       Integrate command line arguments in configAE.py
 
-#       Collect inference metrics (Avg. MSE in PC->z)
+#       Collect inference metrics (Avg. MSE in PC->z, CADLoss z->CAD)
 
 #       Refactor pc_to_cad_pipeline notebook
+
+#       Maybe save the predicted latent reps and predicted CAD sequences 
+#       as one file per sample -> Thereby one can save different sequence lengths
+#       And have a naming scheme that corresponds to the original deepcad repo
+#       However it is still possible to do it ins ingle files I guess
+#       Check out, if loss takes in 60 sequence or true seq length
+
+#       Create parent class of dataset loader (check if training still works then)
+
+#       Check, if PC, pred lat rep, target lat rep, pred CAD seq, target CAD seq allign!
+
+#       Include a test that checks if all point cloud and cad seq paths allign
 
 
 # TODO  README
