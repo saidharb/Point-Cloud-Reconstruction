@@ -15,7 +15,7 @@ class ConfigAE(object):
         # init hyperparameters and parse from command-line
         #parser, args = self.parse()
         args = {
-            "proj_dir": "../data/latent",
+            "proj_dir": os.path.abspath("data/latent"),
             "data_root": "data",
             "exp_name": 'pretrained',
             "gpu_ids": "0",

@@ -133,9 +133,9 @@ def main(args):
     monitor.log_and_print("### DONE PC->z ###")
 
     # Load DeepCAD model
-    cfg = ConfigAE('test')
-    tr_agent = TrainerAE(cfg)
-    
+    cfg = ConfigAE('test') # Creates config data and model and log dirs if they don't exist
+    tr_agent = TrainerAE(cfg) # Initializes CADTransformer, CADLoss, Adam and LRScheduler
+    tr_agent.load_ckpt(cfg.ckpt)
 
 
     
