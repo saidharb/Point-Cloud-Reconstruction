@@ -115,11 +115,11 @@ def main(args):
 
     with h5py.File(h5_file, 'w') as hf:
         z_dataset = hf.create_dataset('latent_rep', 
-                                      shape=(num_samples, latent_dim), 
+                                      shape=(num_samples, 1, latent_dim), 
                                       dtype=np.float32)
         cad_seq_dataset = hf.create_dataset('cad_sequence', 
-                                            shape=(num_samples, cfg.max_total_len), 
-                                            dtype=np.float32)
+                                            shape=(num_samples, cfg.max_total_len, cfg.n_args + 1), 
+                                            dtype=np.int64)
         start_idx = 0
 
         with torch.no_grad():
@@ -135,17 +135,16 @@ def main(args):
                     print(f"Batch {i + 1}/{len(dataloader)}: "
                         f"Loss: {loss.cpu().item():.8f}", flush=True)
                 
-                end_idx = start_idx + batch_size
-                z_dataset[start_idx:end_idx] = pred.cpu().numpy()
-
                 pred = pred.unsqueeze(1) # CRITICAL: shape = (B,1,256), NOT (1,B,256) -> unsqueeze(1 not 0)
                 output = tr_agent.decode(pred)
                 batch_out_vec = tr_agent.logits2vec(output)
 
-
+                end_idx = start_idx + pred.shape[0] # dynamic batch size
+                z_dataset[start_idx:end_idx] = pred.cpu().numpy()
+                cad_seq_dataset[start_idx:end_idx] = batch_out_vec
                 start_idx = end_idx
 
-                if i == 2:
+                if i == 10:
                     break
     monitor.log_and_print("### DONE PC->z ###")
 
