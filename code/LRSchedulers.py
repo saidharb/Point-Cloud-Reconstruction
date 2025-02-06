@@ -26,7 +26,6 @@ class BaseLRScheduler():
 
     def update(self, val_loss = None):
         self.lr_history.append(self.get_current_learning_rate())
-        print(self.lr_history) #####
         self.save_state()
         self.update_state()
 
