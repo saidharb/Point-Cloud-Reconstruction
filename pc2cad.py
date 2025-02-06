@@ -103,18 +103,29 @@ def main(args):
     dataloader = DataLoader(dataset, batch_size = batch_size, num_workers = num_workers, shuffle = False)
     num_samples = len(dataset) # FIXME When infering from a directory adapt this dynamically
     
+    # Load DeepCAD model
+    cfg = ConfigAE('test') # Creates config data and model and log dirs if they don't exist
+    tr_agent = TrainerAE(cfg) # Initializes CADTransformer, CADLoss, Adam and LRScheduler
+    tr_agent.load_ckpt(cfg.ckpt)
+    
     # Inference
     classifier.eval()
+    tr_agent.net.eval()
     monitor.log_and_print("### START INFERENCE ###")
 
     with h5py.File(h5_file, 'w') as hf:
         z_dataset = hf.create_dataset('latent_rep', 
-                                shape=(num_samples, latent_dim), 
-                                dtype=np.float32)
+                                      shape=(num_samples, latent_dim), 
+                                      dtype=np.float32)
+        cad_seq_dataset = hf.create_dataset('cad_sequence', 
+                                            shape=(num_samples, cfg.max_total_len), 
+                                            dtype=np.float32)
         start_idx = 0
 
         with torch.no_grad():
             for i, (pc, latent_rep) in enumerate(dataloader):
+                
+                # PC -> z
                 pc, latent_rep = pc.to(device), latent_rep.to(device)
                 pc = pc.transpose(2, 1)
                 pred, _ = classifier(pc)
@@ -126,19 +137,18 @@ def main(args):
                 
                 end_idx = start_idx + batch_size
                 z_dataset[start_idx:end_idx] = pred.cpu().numpy()
+
+                pred = pred.unsqueeze(1) # CRITICAL: shape = (B,1,256), NOT (1,B,256) -> unsqueeze(1 not 0)
+                output = tr_agent.decode(pred)
+                batch_out_vec = tr_agent.logits2vec(output)
+
+
                 start_idx = end_idx
 
                 if i == 2:
                     break
     monitor.log_and_print("### DONE PC->z ###")
 
-    # Load DeepCAD model
-    cfg = ConfigAE('test') # Creates config data and model and log dirs if they don't exist
-    tr_agent = TrainerAE(cfg) # Initializes CADTransformer, CADLoss, Adam and LRScheduler
-    tr_agent.load_ckpt(cfg.ckpt)
-
-
-    
 
 if __name__ == '__main__':
     args = parse_args()
@@ -152,7 +162,13 @@ if __name__ == '__main__':
 
 #       When using the DeepCAD model, make sure to check the latent representations
 #       if they are non zero
+
 #       Integrate command line arguments in configAE.py
+
+#       Collect inference metrics (Avg. MSE in PC->z)
+
+#       Refactor pc_to_cad_pipeline notebook
+
 
 # TODO  README
 
