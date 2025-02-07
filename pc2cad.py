@@ -134,18 +134,27 @@ def main(args):
                 loss = criterion(pred,latent_rep)
                 pn_running_loss += loss.detach().cpu()
 
-                if args.verbose:
-                    print(f"Batch {i + 1}/{len(dataloader)}: "
-                        f"Loss: {loss.cpu().item():.8f}", flush=True)
+                
                 
                 pred = pred.unsqueeze(1) # CRITICAL: shape = (B,1,256), NOT (1,B,256) -> unsqueeze(1 not 0)
                 output = tr_agent.decode(pred)
-                # loss_dict = tr_agent.loss_func(output)
-                # for k, v in loss_dict.items():
-                #     print(f"{k}: {v.shape}")
+                
+                output["tgt_commands"] = cad_seq[:, :, 0] 
+                output["tgt_args"] = cad_seq[:, :, 1:]
+                # in the original deepcad repo they extract
+                # the commmands and params(args) in the get_item method of CADDataset
+                # There the batch dimension is not applied yet, this is why they access only
+                # two dims instead of 3. Here outside of get item i have to access 3 
+
+                loss_dict = tr_agent.loss_func(output)
                 batch_out_vec = tr_agent.logits2vec(output)
-                print(cad_seq[0])
-                print(pc_path[0])
+
+                if args.verbose:
+                    print(f"Batch {i + 1}/{len(dataloader)}: "
+                          f"MSE-Loss: {loss.cpu().item():8.5f}", 
+                          f"Commands-Loss: {loss_dict['loss_cmd'].cpu().item():8.5f}", 
+                          f"Arguments-Loss: {loss_dict['loss_args'].cpu().item():8.5f}",
+                          flush=True)
 
                 end_idx = start_idx + pred.shape[0] # dynamic batch size
                 z_dataset[start_idx:end_idx] = pred.cpu().numpy()
@@ -154,7 +163,7 @@ def main(args):
 
                 if i == 2:
                     break
-    monitor.log_and_print("### DONE PC->z ###")
+    monitor.log_and_print("### DONE ###")
 # PRÜFEN OB PC PATH UND CAD VEC PATH ÜBEREINSTIMMEN!!
 
 if __name__ == '__main__':
