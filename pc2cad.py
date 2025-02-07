@@ -16,6 +16,7 @@ from code.utils import Logger
 from models.DeepCAD.config.configAE import ConfigAE
 from models.DeepCAD.trainer.trainerAE import TrainerAE
 
+torch.manual_seed(42)
 
 def parse_args():
     '''PARAMETERS'''
@@ -165,7 +166,7 @@ def main(args):
                 cad_seq_dataset[start_idx:end_idx] = batch_out_vec
                 start_idx = end_idx
 
-                if i == 2:
+                if i == 0:
                     break
     monitor.log_and_print(f"Avg. MSE-Loss: {mse_running_loss/num_samples:8.5f} " # FIXME When not infering sets, change this
                           f"Avg. Commands-Loss: {cmd_running_loss/num_samples:8.5f} " 
@@ -184,6 +185,8 @@ if __name__ == '__main__':
 #       are available or not
 
 #       STIMMEN EIGENTLICH PC UND LATENT ÜBEREIN??
+#       
+#       HOW AND WHERE is quantization
 
 #       Loss theoretisch verstehen
 
@@ -200,6 +203,8 @@ if __name__ == '__main__':
 #       as one file per sample -> Thereby one can save different sequence lengths
 #       And have a naming scheme that corresponds to the original deepcad repo
 #       However it is still possible to do it ins ingle files I guess
+#       Chatgpt recommends to do one single file
+
 #       Check out, if loss takes in 60 sequence or true seq length
 
 #       Create parent class of dataset loader (check if training still works then)

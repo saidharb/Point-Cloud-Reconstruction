@@ -21,10 +21,17 @@ class CADLoss(nn.Module):
 
         visibility_mask = _get_visibility_mask(tgt_commands, seq_dim=-1)
         padding_mask = _get_padding_mask(tgt_commands, seq_dim=-1, extended=True) * visibility_mask.unsqueeze(-1)
-
+        
         command_logits, args_logits = output["command_logits"], output["args_logits"]
-
+        
         mask = self.cmd_args_mask[tgt_commands.long()]
+        # torch.save({'command_logits': command_logits, 
+        #             'args_logits': args_logits, 
+        #             'mask': mask,
+        #             'padding_mask': padding_mask,
+        #             'tgt_commands': tgt_commands,
+        #             'tgt_args': tgt_args}, 
+        #             "notebooks/example2.pth")
 
         loss_cmd = F.cross_entropy(command_logits[padding_mask.bool()].reshape(-1, self.n_commands), tgt_commands[padding_mask.bool()].reshape(-1).long())
         loss_args = F.cross_entropy(args_logits[mask.bool()].reshape(-1, self.args_dim), tgt_args[mask.bool()].reshape(-1).long() + 1)  # shift due to -1 PAD_VAL
