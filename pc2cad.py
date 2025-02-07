@@ -3,7 +3,6 @@ import sys
 import argparse
 import importlib
 import time
-import csv
 import h5py
 
 import torch
@@ -12,7 +11,6 @@ from torch.utils.data import DataLoader
 import numpy as np
 
 from code.dataset import PointCloudEmbeddingSequenceDataset
-from code.metrics import RegressionRunningScore
 from code.utils import Logger
 
 from models.DeepCAD.config.configAE import ConfigAE
@@ -121,8 +119,9 @@ def main(args):
                                             shape=(num_samples, cfg.max_total_len, cfg.n_args + 1), 
                                             dtype=np.int64)
         start_idx = 0
-        pn_running_loss = 0.0
-        dc_running_loss = 0.0
+        mse_running_loss = 0.0
+        cmd_running_loss = 0.0
+        args_running_loss = 0.0
 
         with torch.no_grad():
             for i, (pc, latent_rep, cad_seq, pc_path) in enumerate(dataloader):
@@ -132,8 +131,6 @@ def main(args):
                 pc = pc.transpose(2, 1)
                 pred, _ = classifier(pc)
                 loss = criterion(pred,latent_rep)
-                pn_running_loss += loss.detach().cpu()
-
                 
                 
                 pred = pred.unsqueeze(1) # CRITICAL: shape = (B,1,256), NOT (1,B,256) -> unsqueeze(1 not 0)
@@ -149,11 +146,18 @@ def main(args):
                 loss_dict = tr_agent.loss_func(output)
                 batch_out_vec = tr_agent.logits2vec(output)
 
+                cmd_loss = loss_dict['loss_cmd'].detach().cpu().item()
+                args_loss = loss_dict['loss_args'].detach().cpu().item()
+
+                mse_running_loss += loss.detach().cpu().item()
+                cmd_running_loss += cmd_loss
+                args_running_loss += args_loss
+
                 if args.verbose:
                     print(f"Batch {i + 1}/{len(dataloader)}: "
                           f"MSE-Loss: {loss.cpu().item():8.5f}", 
-                          f"Commands-Loss: {loss_dict['loss_cmd'].cpu().item():8.5f}", 
-                          f"Arguments-Loss: {loss_dict['loss_args'].cpu().item():8.5f}",
+                          f"Commands-Loss: {cmd_loss:8.5f}", 
+                          f"Arguments-Loss: {args_loss:8.5f}",
                           flush=True)
 
                 end_idx = start_idx + pred.shape[0] # dynamic batch size
@@ -163,6 +167,9 @@ def main(args):
 
                 if i == 2:
                     break
+    monitor.log_and_print(f"Avg. MSE-Loss: {mse_running_loss/num_samples:8.5f} " # FIXME When not infering sets, change this
+                          f"Avg. Commands-Loss: {cmd_running_loss/num_samples:8.5f} " 
+                          f"Avg. Arguments-Loss: {args_running_loss/num_samples:8.5f}")
     monitor.log_and_print("### DONE ###")
 # PRÜFEN OB PC PATH UND CAD VEC PATH ÜBEREINSTIMMEN!!
 
@@ -170,13 +177,15 @@ if __name__ == '__main__':
     args = parse_args()
     main(args)
 
-# NEXXXT: CAD seq target is now provided
+
 # TODO  Script should be able to infer train/val/test set
 #       But also one should be able to specify a dir with pointclouds inside
 #       Maybe there needs to be some differentiation if CAD sequence targets
 #       are available or not
 
 #       STIMMEN EIGENTLICH PC UND LATENT ÜBEREIN??
+
+#       Loss theoretisch verstehen
 
 #       When using the DeepCAD model, make sure to check the latent representations
 #       if they are non zero
