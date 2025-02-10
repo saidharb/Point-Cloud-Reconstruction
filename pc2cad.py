@@ -125,7 +125,7 @@ def main(args):
         args_running_loss = 0.0
 
         with torch.no_grad():
-            for i, (pc, latent_rep, cad_seq, pc_path) in enumerate(dataloader):
+            for i, (pc, latent_rep, cad_seq) in enumerate(dataloader):
                 
                 # PC -> z
                 pc, latent_rep = pc.to(device), latent_rep.to(device)
