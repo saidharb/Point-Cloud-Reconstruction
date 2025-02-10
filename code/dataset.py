@@ -50,8 +50,11 @@ class BaseDataset(Dataset, ABC):
     def __getitem__(self, idx):
         pass
     
-    def get_path(self, idx):
+    def get_pc_path(self, idx):
         return self.pc[idx]
+    
+    def get_cad_seq_path(self, idx):
+        return self.cad_seq[idx]
     
     def read_split(self):
         with open(self.split_path, "r") as fp:

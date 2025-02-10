@@ -217,6 +217,7 @@ if __name__ == '__main__':
 
 
 # TODO  README
+#       pc2cad and pytest
 
 # TODO  CHANGELOG DeepCAD
 #       Adapted imports to new repo structure
