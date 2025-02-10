@@ -11,6 +11,10 @@ from tqdm import tqdm
 
 from models.DeepCAD.cadlib.macro import EOS_VEC, MAX_TOTAL_LEN
 
+class BaseDataset():
+    def __init__(self, root, split):
+        pass
+
 
 class PointCloudEmbeddingDataset(Dataset):
     
