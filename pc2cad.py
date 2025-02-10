@@ -166,11 +166,11 @@ def main(args):
                 cad_seq_dataset[start_idx:end_idx] = batch_out_vec
                 start_idx = end_idx
 
-                if i == 0:
+                if i == 100:
                     break
     monitor.log_and_print(f"Avg. MSE-Loss: {mse_running_loss/num_samples:8.5f} " # FIXME When not infering sets, change this
-                          f"Avg. Commands-Loss: {cmd_running_loss/num_samples:8.5f} " 
-                          f"Avg. Arguments-Loss: {args_running_loss/num_samples:8.5f}")
+                          f"Avg. Command-Loss: {cmd_running_loss/num_samples:8.5f} " 
+                          f"Avg. Argument-Loss: {args_running_loss/num_samples:8.5f}")
     monitor.log_and_print("### DONE ###")
 # PRÜFEN OB PC PATH UND CAD VEC PATH ÜBEREINSTIMMEN!!
 
@@ -188,14 +188,10 @@ if __name__ == '__main__':
 #       
 #       HOW AND WHERE is quantization
 
-#       Loss theoretisch verstehen
-
 #       When using the DeepCAD model, make sure to check the latent representations
 #       if they are non zero
 
 #       Integrate command line arguments in configAE.py
-
-#       Collect inference metrics (Avg. MSE in PC->z, CADLoss z->CAD)
 
 #       Refactor pc_to_cad_pipeline notebook
 
@@ -213,6 +209,12 @@ if __name__ == '__main__':
 
 #       Include a test that checks if all point cloud and cad seq paths allign
 
+#       export2step
+
+#       Pipeline:   PC -> z (MSE), visualize PC, maybe create target z' during test time?
+#                   z  -> CAD-seq (CADLoss), 
+#                   export2step, for CAD-seq and target CAD-seq'
+
 
 # TODO  README
 
@@ -221,3 +223,8 @@ if __name__ == '__main__':
 #       Manage command line arguments in configAE.py
 #       Removed tensorboard dependency
 #       Fixed abstract method by including ABC dependency
+
+
+# DONE
+#       Loss theoretisch verstehen
+#       Collect inference metrics (Avg. MSE in PC->z, CADLoss z->CAD)
