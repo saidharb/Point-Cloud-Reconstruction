@@ -184,8 +184,6 @@ if __name__ == '__main__':
 #       Maybe there needs to be some differentiation if CAD sequence targets
 #       are available or not
 
-#       STIMMEN EIGENTLICH PC UND LATENT ÜBEREIN??
-#       
 #       HOW AND WHERE is quantization
 
 #       When using the DeepCAD model, make sure to check the latent representations
@@ -229,3 +227,4 @@ if __name__ == '__main__':
 # DONE
 #       Loss theoretisch verstehen
 #       Collect inference metrics (Avg. MSE in PC->z, CADLoss z->CAD)
+#       STIMMEN EIGENTLICH PC UND LATENT ÜBEREIN?? -> Ja

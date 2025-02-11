@@ -22,7 +22,7 @@ def test_PointCloudEmbeddingSequenceDataset_empty(split):
     assert len(dataset) > 0, f"Dataset {split} is empty."
 
 @pytest.mark.parametrize("split", ["train", "validation", "test"])
-def test_pc_cad_seq_match(split):
+def test_PointCloudEmbeddingDataset_pc_cad_seq_match(split):
     """Check whether the point cloud path and CAD-sequence path match"""
     dataset = PointCloudEmbeddingDataset(DATA_DIR, split)
 
@@ -35,7 +35,7 @@ def test_pc_cad_seq_match(split):
         os.path.splitext(os.path.basename(cad_path))[0]
     ), "Point Cloud and CAD-Sequence don't align in PointCloudEmbeddingDataset {split} set."
 @pytest.mark.parametrize("split", ["train", "validation", "test"])
-def test_pc_cad_seq_match(split):
+def test_PointCloudEmbeddingSequenceDataset_pc_cad_seq_match(split):
     """Check whether the point cloud path and CAD-sequence path match"""
     dataset = PointCloudEmbeddingSequenceDataset(DATA_DIR, split)
 
@@ -75,10 +75,3 @@ def test_cad_vec_lat_rep_match(split):
         output = output.squeeze()
         assert(torch.allclose(lat_rep, output, atol=1e-6)), "The encoded CAD-\
             sequence does not match the latent representation on disk."
-
-
-# schauen ob pretrained DeepCAD model die selbe lat rep produziert
-# die als target hier is, 
-# Input: CAD-seq (same as PC)
-# Infer CAD-seq using pretrained DeepCAD
-# compare if DeepCAD pred lat rep is equal to the target
