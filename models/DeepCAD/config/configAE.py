@@ -7,7 +7,7 @@ from models.DeepCAD.cadlib.macro import *
 
 
 class ConfigAE(object):
-    def __init__(self, phase):
+    def __init__(self, phase, model_path="data/latent"):
         self.is_train = phase == "train"
 
         self.set_configuration()
@@ -15,7 +15,7 @@ class ConfigAE(object):
         # init hyperparameters and parse from command-line
         #parser, args = self.parse()
         args = {
-            "proj_dir": os.path.abspath("data/latent"),
+            "proj_dir": os.path.abspath(model_path),
             "data_root": "data",
             "exp_name": 'pretrained',
             "gpu_ids": "0",
