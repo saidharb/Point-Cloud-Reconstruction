@@ -13,11 +13,13 @@ from tqdm import tqdm
 from models.DeepCAD.cadlib.macro import EOS_VEC, MAX_TOTAL_LEN
 
 class BaseDataset(Dataset, ABC):
-    def __init__(self, root, split):
+    def __init__(self, root, split, verbose=False):
         self.root = root
         self.split = split
+        self.verbose = verbose
         assert split in {'train', 'validation', 'test'}, f"Invalid split '{split}'. Valid options are: 'train', 'validation', 'test'"
-        print(f"Loading {self.split} dataset \n", flush=True)
+        if self.verbose:
+            print(f"Loading {self.split} dataset \n", flush=True)
 
         self.split_path = os.path.join(root, "train_val_test_split.json")
         self.pc_path = os.path.join(root, "pc_cad")
@@ -40,7 +42,8 @@ class BaseDataset(Dataset, ABC):
             latent_all = np.array(f[self.split + '_zs'])
         assert(self.check_latent_valid(latent_all))
         self.latent = self.filter_latent(latent_all)
-        print("--- DONE ---\n", flush=True)
+        if self.verbose:
+            print("--- DONE ---\n", flush=True)
     
     def __len__(self):
         assert(len(self.pc) == len(self.latent)), f"The number of point clouds {len(self.pc)} is different from the number of latent representations {len(self.latent)}"
@@ -59,7 +62,8 @@ class BaseDataset(Dataset, ABC):
     def read_split(self):
         with open(self.split_path, "r") as fp:
             all_data = json.load(fp)
-        print(f"Number of samples that should be in the {self.split} set: {len(all_data[self.split])}", flush=True)
+        if self.verbose:
+            print(f"Number of samples that should be in the {self.split} set: {len(all_data[self.split])}", flush=True)
         pc_set = [os.path.join(self.pc_path, f"{idx}.ply") for idx in all_data[self.split]]
         return pc_set
     
@@ -70,11 +74,13 @@ class BaseDataset(Dataset, ABC):
     def filter_pc(self, pc_set):
         pc_set_filtered = [entry for entry in pc_set if entry in self.all_pc_files]
         corrupt_files = [i for i, entry in enumerate(pc_set) if entry not in self.all_pc_files]
-        print(f"Files on disk: {len(pc_set_filtered)} --> There are {len(corrupt_files)} missing point cloud files in the {self.split} set.\n", flush=True)
+        if self.verbose:
+            print(f"Files on disk: {len(pc_set_filtered)} --> There are {len(corrupt_files)} missing point cloud files in the {self.split} set.\n", flush=True)
         return pc_set_filtered, corrupt_files
     
     def check_valid_pc(self, paths_list):
-        print(f"Checking if all point clouds are valid in the {self.split} set:", flush=True)
+        if self.verbose:
+            print(f"Checking if all point clouds are valid in the {self.split} set:", flush=True)
         corrupt_counter = 0
         for pc_file in tqdm(paths_list):
             try:
@@ -83,24 +89,29 @@ class BaseDataset(Dataset, ABC):
                     corrupt_counter += 1
             except Exception as e:
                 corrupt_counter += 1
-        print(f"There are {corrupt_counter} corrupt files in the {self.split} set.\n", flush=True)
+        if self.verbose:
+            print(f"There are {corrupt_counter} corrupt files in the {self.split} set.\n", flush=True)
         if corrupt_counter == 0:
             return True
         else:
             return False
         
     def check_latent_valid(self, data):
-        print("Checking latent representation:", flush=True)
+        if self.verbose:
+            print("Checking latent representation:", flush=True)
         zero_rows = np.all(data == 0, axis=1)
         num_zero_rows = np.sum(zero_rows)
         if num_zero_rows > 0:
-            print(f"There are {num_zero_rows} zero rows.", flush=True)
+            if self.verbose:
+                print(f"There are {num_zero_rows} zero rows.", flush=True)
         nan_or_inf_rows = np.any(np.isnan(data) | np.isinf(data), axis=1)
         num_nan_or_inf_rows = np.sum(nan_or_inf_rows)
         if num_nan_or_inf_rows > 0:
-            print(f"There are {num_nan_or_inf_rows} rows with NaN or Inf values.", flush=True)
+            if self.verbose:
+                print(f"There are {num_nan_or_inf_rows} rows with NaN or Inf values.", flush=True)
         if num_zero_rows == 0 and num_nan_or_inf_rows == 0:
-            print("All latent represenations are valid.\n", flush=True)
+            if self.verbose:
+                print("All latent represenations are valid.\n", flush=True)
             return True
         else:
             return False
