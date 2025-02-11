@@ -39,9 +39,9 @@ class ConfigAE(object):
         }
 
         # set as attributes
-        print("----Experiment Configuration-----")
+        # print("----Experiment Configuration-----")
         for k, v in args.items():
-            print("{0:20}".format(k), v)
+            # print("{0:20}".format(k), v)
             self.__setattr__(k, v)
 
         # experiment paths
