@@ -3,6 +3,10 @@
 The content of this directory was cloned from [ChrisWu1997 DeepCAD](https://github.com/ChrisWu1997/DeepCAD) repository on January 7th 2025. 
 All notable changes to this project will be documented in this file.
 
+## [0.1.5] - 2025-02-11
+### Changed
+- Changed `configAE.py` hard coded command line argument ```"proj_dir"``` to keyword argument in the class ```ConfigAE```.
+
 ## [0.1.4] - 2025-02-05
 ### Changed
 - Changed imports of modules to new repository structure
