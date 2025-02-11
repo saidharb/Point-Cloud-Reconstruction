@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 ## [0.1.5] - 2025-02-11
 ### Changed
 - Changed `configAE.py` hard coded command line argument ```"proj_dir"``` to keyword argument in the class ```ConfigAE```.
+- In the ```if extended:``` statment in ```_get_key_padding_mask``` a ```.clone()``` was added to the second tensor in order to mitigate the ```RuntimeError``` when using a batch size of one. Also there I have a doubt that the ```if extended:``` statement works correctly, as it actually does not include the final EOS command into the padding mask.
 
 ## [0.1.4] - 2025-02-05
 ### Changed
