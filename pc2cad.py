@@ -2,7 +2,6 @@ import os
 import sys
 import argparse
 import importlib
-import time
 import h5py
 
 import torch
@@ -16,7 +15,7 @@ from code.utils import Logger
 from models.DeepCAD.config.configAE import ConfigAE
 from models.DeepCAD.trainer.trainerAE import TrainerAE
 
-torch.manual_seed(42)
+# torch.manual_seed(42)
 
 def parse_args():
     '''PARAMETERS'''
@@ -172,7 +171,6 @@ def main(args):
                           f"Avg. Command-Loss: {cmd_running_loss/num_samples:8.5f} " 
                           f"Avg. Argument-Loss: {args_running_loss/num_samples:8.5f}")
     monitor.log_and_print("### DONE ###")
-# PRÜFEN OB PC PATH UND CAD VEC PATH ÜBEREINSTIMMEN!!
 
 if __name__ == '__main__':
     args = parse_args()
@@ -184,13 +182,6 @@ if __name__ == '__main__':
 #       Maybe there needs to be some differentiation if CAD sequence targets
 #       are available or not
 
-#       HOW AND WHERE is quantization
-
-#       When using the DeepCAD model, make sure to check the latent representations
-#       if they are non zero
-
-#       Integrate command line arguments in configAE.py
-
 #       Refactor pc_to_cad_pipeline notebook
 
 #       Maybe save the predicted latent reps and predicted CAD sequences 
@@ -199,29 +190,18 @@ if __name__ == '__main__':
 #       However it is still possible to do it ins ingle files I guess
 #       Chatgpt recommends to do one single file
 
-#       Check out, if loss takes in 60 sequence or true seq length
-
-#       Create parent class of dataset loader (check if training still works then)
-
-#       Check, if PC, pred lat rep, target lat rep, pred CAD seq, target CAD seq allign!
-
-#       Include a test that checks if all point cloud and cad seq paths allign
-
 #       export2step
 
 #       Pipeline:   PC -> z (MSE), visualize PC, maybe create target z' during test time?
 #                   z  -> CAD-seq (CADLoss), 
 #                   export2step, for CAD-seq and target CAD-seq'
 
+#       infer the whole train, val and testset with the best model from the cluster!
+
 
 # TODO  README
 #       pc2cad and pytest
-
-# TODO  CHANGELOG DeepCAD
-#       Adapted imports to new repo structure
-#       Manage command line arguments in configAE.py
-#       Removed tensorboard dependency
-#       Fixed abstract method by including ABC dependency
+#       Integrate command line arguments in configAE.py
 
 
 # DONE
