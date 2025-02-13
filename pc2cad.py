@@ -29,8 +29,11 @@ def parse_args():
                         help='data directory relative to root directory')
     parser.add_argument('--batch_size', type=int, default=48, help='batch size')
     parser.add_argument('--verbose', action='store_true', default=False, help='output per batch metrics')
-    parser.add_argument('--exp_name', type=str, required=True, help='name of the experiment')
+    parser.add_argument('--exp_name', type=str, required=True, 
+                        help='name of the experiment in results folder within the run directory')
     parser.add_argument('--model_path', type=str, required=True, help='path to the trained model')
+    parser.add_argument('--save', action='store_true', default=False,
+                        help='save predicted latent representations and cad-sequences')
     parser.add_argument('--phase', type=str, choices=['train', 'validation', 'test'], 
                         default='train', help='which set to infer')
     return parser.parse_args()
@@ -112,12 +115,13 @@ def main(args):
     monitor.log_and_print("### START INFERENCE ###")
 
     with h5py.File(h5_file, 'w') as hf:
-        z_dataset = hf.create_dataset('latent_rep', 
-                                      shape=(num_samples, 1, latent_dim), 
-                                      dtype=np.float32)
-        cad_seq_dataset = hf.create_dataset('cad_sequence', 
-                                            shape=(num_samples, cfg.max_total_len, cfg.n_args + 1), 
-                                            dtype=np.int64)
+        if args.save:
+            z_dataset = hf.create_dataset('latent_rep', 
+                                        shape=(num_samples, 1, latent_dim), 
+                                        dtype=np.float32)
+            cad_seq_dataset = hf.create_dataset('cad_sequence', 
+                                                shape=(num_samples, cfg.max_total_len, cfg.n_args + 1), 
+                                                dtype=np.int64)
         start_idx = 0
         mse_running_loss = 0.0
         cmd_running_loss = 0.0
@@ -161,8 +165,9 @@ def main(args):
                           flush=True)
 
                 end_idx = start_idx + pred.shape[0] # dynamic batch size
-                z_dataset[start_idx:end_idx] = pred.cpu().numpy()
-                cad_seq_dataset[start_idx:end_idx] = batch_out_vec
+                if args.save:
+                    z_dataset[start_idx:end_idx] = pred.cpu().numpy()
+                    cad_seq_dataset[start_idx:end_idx] = batch_out_vec
                 start_idx = end_idx
 
                 if i == 10:
@@ -170,6 +175,11 @@ def main(args):
     monitor.log_and_print(f"Avg. MSE-Loss: {mse_running_loss/num_samples:8.5f} " # FIXME When not infering sets, change this
                           f"Avg. Command-Loss: {cmd_running_loss/num_samples:8.5f} " 
                           f"Avg. Argument-Loss: {args_running_loss/num_samples:8.5f}")
+    
+    if not args.save:
+        if os.path.exists(h5_file):
+            os.remove(h5_file)
+    
     monitor.log_and_print("### DONE ###")
 
 if __name__ == '__main__':
@@ -177,12 +187,9 @@ if __name__ == '__main__':
     main(args)
 
 
-# TODO  Script should be able to infer train/val/test set
-#       But also one should be able to specify a dir with pointclouds inside
-#       Maybe there needs to be some differentiation if CAD sequence targets
-#       are available or not
+# TODO  
 
-#       Refactor pc_to_cad_pipeline notebook
+#       Enable optional saving? (Saving whole train set is a lot)
 
 #       Maybe save the predicted latent reps and predicted CAD sequences 
 #       as one file per sample -> Thereby one can save different sequence lengths
@@ -190,17 +197,14 @@ if __name__ == '__main__':
 #       However it is still possible to do it ins ingle files I guess
 #       Chatgpt recommends to do one single file
 
-#       export2step
+#       differentiation if CAD sequence targets are available or not -> new pc testing
 
-#       Pipeline:   PC -> z (MSE), visualize PC, maybe create target z' during test time?
-#                   z  -> CAD-seq (CADLoss), 
-#                   export2step, for CAD-seq and target CAD-seq'
+#       export2step
 
 #       infer the whole train, val and testset with the best model from the cluster!
 
 
-# TODO  README
-#       pc2cad and pytest
+# TODO  README pc2cad and pytest
 #       Integrate command line arguments in configAE.py
 
 
@@ -208,3 +212,8 @@ if __name__ == '__main__':
 #       Loss theoretisch verstehen
 #       Collect inference metrics (Avg. MSE in PC->z, CADLoss z->CAD)
 #       STIMMEN EIGENTLICH PC UND LATENT ÜBEREIN?? -> Ja
+#       Script should be able to infer train/val/test set
+#       But also one should be able to specify a dir with pointclouds inside
+#       Maybe there needs to be some 
+
+#       Refactor pc_to_cad_pipeline notebook
