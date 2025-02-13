@@ -140,9 +140,9 @@ def main(args):
                 pred = pred.unsqueeze(1) # CRITICAL: shape = (B,1,256), NOT (1,B,256) -> unsqueeze(1 not 0)
                 output = tr_agent.decode(pred)
                 
-                output["tgt_commands"] = cad_seq[:, :, 0]
-                output["tgt_args"] = cad_seq[:, :, 1:]
-                output = output.to(device)
+                output["tgt_commands"] = cad_seq[:, :, 0].to(device)
+                output["tgt_args"] = cad_seq[:, :, 1:].to(device)
+                
                 # in the original deepcad repo they extract
                 # the commmands and params(args) in the get_item method of CADDataset
                 # There the batch dimension is not applied yet, this is why they access only
