@@ -170,8 +170,8 @@ def main(args):
                     cad_seq_dataset[start_idx:end_idx] = batch_out_vec
                 start_idx = end_idx
 
-                if i == 10:
-                    break
+                # if i == 10:
+                #     break
     monitor.log_and_print(f"Avg. MSE-Loss: {mse_running_loss/num_samples:8.5f} " # FIXME When not infering sets, change this
                           f"Avg. Command-Loss: {cmd_running_loss/num_samples:8.5f} " 
                           f"Avg. Argument-Loss: {args_running_loss/num_samples:8.5f}")
