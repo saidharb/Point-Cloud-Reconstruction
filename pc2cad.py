@@ -140,8 +140,9 @@ def main(args):
                 pred = pred.unsqueeze(1) # CRITICAL: shape = (B,1,256), NOT (1,B,256) -> unsqueeze(1 not 0)
                 output = tr_agent.decode(pred)
                 
-                output["tgt_commands"] = cad_seq[:, :, 0] 
+                output["tgt_commands"] = cad_seq[:, :, 0]
                 output["tgt_args"] = cad_seq[:, :, 1:]
+                output = output.to(device)
                 # in the original deepcad repo they extract
                 # the commmands and params(args) in the get_item method of CADDataset
                 # There the batch dimension is not applied yet, this is why they access only
@@ -152,7 +153,6 @@ def main(args):
 
                 cmd_loss = loss_dict['loss_cmd'].detach().cpu().item()
                 args_loss = loss_dict['loss_args'].detach().cpu().item()
-
                 mse_running_loss += loss.detach().cpu().item()
                 cmd_running_loss += cmd_loss
                 args_running_loss += args_loss
