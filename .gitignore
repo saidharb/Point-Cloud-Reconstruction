@@ -49,3 +49,6 @@ src/
 
 # json
 **/*.json
+
+# Experiment results
+notebooks/experiments/
