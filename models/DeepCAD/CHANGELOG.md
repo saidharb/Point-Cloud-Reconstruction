@@ -3,6 +3,12 @@
 The content of this directory was cloned from [ChrisWu1997 DeepCAD](https://github.com/ChrisWu1997/DeepCAD) repository on January 7th 2025. 
 All notable changes to this project will be documented in this file.
 
+## [0.1.6] - 2025-02-14
+### Changed
+- Changed ```np.float``` to ```np.float64``` in ```export2step.py```
+### Added
+- Printing of exception in ```export2step.py```
+
 ## [0.1.5] - 2025-02-11
 ### Changed
 - Changed `configAE.py` hard coded command line argument ```"proj_dir"``` to keyword argument in the class ```ConfigAE```.

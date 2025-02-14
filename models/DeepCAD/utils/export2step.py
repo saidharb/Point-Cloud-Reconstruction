@@ -35,7 +35,8 @@ for path in out_paths:
     try:
         if args.form == "h5":
             with h5py.File(path, 'r') as fp:
-                out_vec = fp["out_vec"][:].astype(np.float)
+                out_vec = fp["out_vec"][:].astype(np.float64)
+                print(out_vec.shape)
                 out_shape = vec2CADsolid(out_vec)
         else:
             with open(path, 'r') as fp:
@@ -46,6 +47,7 @@ for path in out_paths:
 
     except Exception as e:
         print("load and create failed.")
+        print(e)
         continue
     
     if args.filter:
