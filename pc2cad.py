@@ -203,6 +203,7 @@ if __name__ == '__main__':
 
 #       infer the whole train, val and testset with the best model from the cluster!
 
+#       Update req.txt conda
 
 # TODO  README pc2cad and pytest
 #       Integrate command line arguments in configAE.py
