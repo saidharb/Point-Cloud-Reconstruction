@@ -205,7 +205,7 @@ if __name__ == '__main__':
 
 #       Update req.txt conda
 
-# TODO  README pc2cad and pytest
+# TODO  README pc2cad and pytest, pc2cad.ipynb
 #       Integrate command line arguments in configAE.py
 
 
