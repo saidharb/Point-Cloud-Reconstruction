@@ -52,3 +52,9 @@ src/
 
 # Experiment results
 notebooks/experiments/
+
+# Point Cloud files
+**/*.pcd
+
+# Figures
+figures
