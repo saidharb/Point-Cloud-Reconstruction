@@ -31,7 +31,7 @@ def parse_args():
     parser.add_argument('--verbose', action='store_true', default=False, help='output per batch metrics')
     parser.add_argument('--exp_name', type=str, required=True, 
                         help='name of the experiment in results folder within the run directory')
-    parser.add_argument('--model_path', type=str, required=True, help='path to the trained model')
+    parser.add_argument('--model_path', type=str, required=True, help='path to the trained PointNet++ model')
     parser.add_argument('--save', action='store_true', default=False,
                         help='save predicted latent representations and cad-sequences')
     parser.add_argument('--phase', type=str, choices=['train', 'validation', 'test'], 
@@ -205,10 +205,9 @@ if __name__ == '__main__':
 
 #       Update req.txt conda
 
-# TODO  README pc2cad and pytest, pc2cad.ipynb
-#       Integrate command line arguments in configAE.py
-
-
+# TODO  Integrate command line arguments in configAE.py
+   #     denormalizing in jupyter notebook
+#       from vector vec2solid
 # DONE
 #       Loss theoretisch verstehen
 #       Collect inference metrics (Avg. MSE in PC->z, CADLoss z->CAD)
