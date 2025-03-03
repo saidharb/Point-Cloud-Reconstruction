@@ -85,6 +85,32 @@ The script will create a `test.log` and a `test_metrics_<model_name>.csv` file w
 | `--batch_size`     | `int`   | `24`         | Batch size                                                                 |
 | `--verbose`        | `bool`  | `False`      | Output per batch metrics                                                   |
 
+## PC to CAD Pipeline
+The script ```pc2cad.py``` enables the full inference pipeline using PointNet++ as the encoder for point clouds and the DeepCAD decoder to decode them into CAD-sequences. Previously DeepCAD was trained on auto-encoding CAD-sequences and PointNet++ was trained on encoding point clouds into the same latent space as DeepCAD. The pre-trained DeepCAD model should be within ```data/latent/pretrained/model/ckpt_epoch1000.pth```. During inference metrics like the PointNet++ MSE-Loss and the DeepCAD Command- and Argument-Loss are recorded and predicted latent representation and CAD-sequence are saved within the model directory under ```results```. Run the script using the following command from root:
+
+```bash
+$ python pc2cad.py --exp_name "test_experiment" --model_path "path/to/model.pth"
+```
+
+| Argument      | Type   | Default  | Description  |
+|--------------|--------|----------|-------------|
+| `--data_root` | `str`  | `'data'`  | Data directory relative to root directory |
+| `--batch_size` | `int`  | `48`  | Batch size |
+| `--verbose` | `bool`  | `False` | Output per batch metrics |
+| `--exp_name` | `str`  | **Required** | Name of the experiment in the results folder within the run directory |
+| `--model_path` | `str`  | **Required** | Path to the trained PointNet++ model |
+| `--save` | `bool` | `False` | Save predicted latent representations and CAD sequences |
+| `--phase` | `str`  | `'train'` | Which dataset split to use (`train`, `validation`, or `test`) |
+
+### Interactive PC to CAD Pipeline and Loss Visualization
+In the notebook ```notebooks/pc2cad.ipynb``` one can interactively encode point clouds into latent representations, decode them into CAD-sequences and analyse, how the Command- and Argument-Loss are calculated in thorough detail. Furthermore all CAD-sequences can be exported to ```.step``` and ```.stl``` files and all temporary and final results are saved for later inspection.
+
+## Pytest
+In order to check if the datasets comprise of all data and the data alligns (i.e. the correct point cloud path is assigned to the equivalent latent representation and CAD-sequence). To run the tests (after exporting Pythonpath) enter the following in the command line from the root directory:
+```bash
+$ pytest tests/
+```
+
 ## Other
 ### Experimental notebooks
 In the code directory you can find experimental jupyter notebooks, which I use to explore and test out scripts and models.
