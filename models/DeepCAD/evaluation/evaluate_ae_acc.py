@@ -5,7 +5,7 @@ import argparse
 import numpy as np
 import sys
 sys.path.append("..")
-from cadlib.macro import *
+from models.DeepCAD.cadlib.macro import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--src', type=str, default=None, required=True)
@@ -25,7 +25,7 @@ each_cmd_cnt = np.zeros((len(ALL_COMMANDS),))
 each_cmd_acc = np.zeros((len(ALL_COMMANDS),))
 
 # accuracy w.r.t each parameter
-args_mask = CMD_ARGS_MASK.astype(np.float)
+args_mask = CMD_ARGS_MASK.astype(np.float32)
 N_ARGS = args_mask.shape[1]
 each_param_cnt = np.zeros([*args_mask.shape])
 each_param_acc = np.zeros([*args_mask.shape])
@@ -33,8 +33,8 @@ each_param_acc = np.zeros([*args_mask.shape])
 for name in tqdm(filenames):
     path = os.path.join(result_dir, name)
     with h5py.File(path, "r") as fp:
-        out_vec = fp["out_vec"][:].astype(np.int)
-        gt_vec = fp["gt_vec"][:].astype(np.int)
+        out_vec = fp["out_vec"][:].astype(np.int32)
+        gt_vec = fp["gt_vec"][:].astype(np.int32)
 
     out_cmd = out_vec[:, 0]
     gt_cmd = gt_vec[:, 0]
@@ -42,7 +42,7 @@ for name in tqdm(filenames):
     out_param = out_vec[:, 1:]
     gt_param = gt_vec[:, 1:]
 
-    cmd_acc = (out_cmd == gt_cmd).astype(np.int)
+    cmd_acc = (out_cmd == gt_cmd).astype(np.int32)
     param_acc = []
     for j in range(len(gt_cmd)):
         cmd = gt_cmd[j]
@@ -52,12 +52,12 @@ for name in tqdm(filenames):
             continue
 
         if out_cmd[j] == gt_cmd[j]: # NOTE: only account param acc for correct cmd
-            tole_acc = (np.abs(out_param[j] - gt_param[j]) < TOLERANCE).astype(np.int)
+            tole_acc = (np.abs(out_param[j] - gt_param[j]) < TOLERANCE).astype(np.int32)
             # filter param that do not need tolerance (i.e. requires strictly equal)
             if cmd == EXT_IDX:
-                tole_acc[-2:] = (out_param[j] == gt_param[j]).astype(np.int)[-2:]
+                tole_acc[-2:] = (out_param[j] == gt_param[j]).astype(np.int32)[-2:]
             elif cmd == ARC_IDX:
-                tole_acc[3] = (out_param[j] == gt_param[j]).astype(np.int)[3]
+                tole_acc[3] = (out_param[j] == gt_param[j]).astype(np.int32)[3]
 
             valid_param_acc = tole_acc[args_mask[cmd].astype(np.bool)].tolist()
             param_acc.extend(valid_param_acc)

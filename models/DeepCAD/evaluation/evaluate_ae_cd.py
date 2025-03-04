@@ -9,11 +9,11 @@ from scipy.spatial import cKDTree as KDTree
 import time
 import sys
 sys.path.append("..")
-from utils import read_ply
-from cadlib.visualize import vec2CADsolid, CADsolid2pc
+from models.DeepCAD.utils import read_ply
+from models.DeepCAD.cadlib.visualize import vec2CADsolid, CADsolid2pc
 
 
-PC_ROOT = "../data/pc_cad"
+PC_ROOT = "data/pc_cad"
 # data that is unable to process
 SKIP_DATA = [""]
 
@@ -42,7 +42,7 @@ def normalize_pc(points):
 
 def process_one(path):
     with h5py.File(path, 'r') as fp:
-        out_vec = fp["out_vec"][:].astype(np.float)
+        out_vec = fp["out_vec"][:].astype(np.float32)
         # gt_vec = fp["gt_vec"][:].astype(np.float)
 
     data_id = path.split('/')[-1].split('.')[0][:8]
