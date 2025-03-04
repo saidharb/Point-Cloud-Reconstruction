@@ -168,9 +168,11 @@ class Extrude(object):
         s += "\n  -" + str(self.sketch_plane)
         s += "\n  -sketch position: {}, sketch size: {}".format(self.sketch_pos.round(4), self.sketch_size.round(4))
         s += "\n  -operation:{}, type:{}, extent_one:{}, extent_two:{}".format(
-            self.operation, self.extent_type, self.extent_one.round(4), self.extent_two.round(4))
+            self.operation, self.extent_type, self.extent_one, self.extent_two)
         s += "\n  -" + str(self.profile)
         return s
+    # Removed .round(4) after extent_one and extent_two to display the values before tranforming them 
+    # transform turns them to np arrays, thats why we can print them before transforming, but I want that
 
     def transform(self, translation, scale):
         """linear transformation"""
