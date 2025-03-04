@@ -205,7 +205,8 @@ if __name__ == '__main__':
 
 #       Update req.txt conda
 
-# TODO  Integrate command line arguments in configAE.py
+# TODO  CHANGELOG DEEPCAD
+# Integrate command line arguments in configAE.py
    #     denormalizing in jupyter notebook
 #       from vector vec2solid
 # DONE
