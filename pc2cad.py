@@ -14,6 +14,7 @@ from code.utils import Logger
 
 from models.DeepCAD.config.configAE import ConfigAE
 from models.DeepCAD.trainer.trainerAE import TrainerAE
+from models.DeepCAD.cadlib.macro import EOS_IDX
 
 # torch.manual_seed(42)
 
@@ -58,9 +59,9 @@ def main(args):
 
     # Create save directory for results
     results_dir = os.path.join(model_dir, "results", args.exp_name)
-    if not os.path.exists(results_dir):
-        os.makedirs(results_dir)
-    h5_file = os.path.join(results_dir, 'z.h5')
+    h5_dir = os.path.join(results_dir, "output")
+    if not os.path.exists(h5_dir):
+        os.makedirs(h5_dir)
 
     # Logging
     monitor = Logger(results_dir, 'pipeline')
@@ -113,72 +114,65 @@ def main(args):
     classifier.eval()
     tr_agent.net.eval()
     monitor.log_and_print("### START INFERENCE ###")
+    mse_running_loss = 0.0
+    cmd_running_loss = 0.0
+    args_running_loss = 0.0
 
-    with h5py.File(h5_file, 'w') as hf:
-        if args.save:
-            z_dataset = hf.create_dataset('latent_rep', 
-                                        shape=(num_samples, 1, latent_dim), 
-                                        dtype=np.float32)
-            cad_seq_dataset = hf.create_dataset('cad_sequence', 
-                                                shape=(num_samples, cfg.max_total_len, cfg.n_args + 1), 
-                                                dtype=np.int64)
-        start_idx = 0
-        mse_running_loss = 0.0
-        cmd_running_loss = 0.0
-        args_running_loss = 0.0
+    with torch.no_grad():
+        for i, data in enumerate(dataloader):
+            pc, cad_seq, latent_rep, id = data["pc"], data["tgt_vec"], data["z"], data["id"]
+            
+            # PC -> z
+            pc, latent_rep = pc.to(device), latent_rep.to(device)
+            pc = pc.transpose(2, 1)
+            pred, _ = classifier(pc)
+            loss = criterion(pred,latent_rep)
+            
+            
+            pred = pred.unsqueeze(1) # CRITICAL: shape = (B,1,256), NOT (1,B,256) -> unsqueeze(1 not 0)
+            output = tr_agent.decode(pred)
+            
+            tgt_commands = cad_seq[:, :, 0]
+            tgt_args = cad_seq[:, :, 1:]
 
-        with torch.no_grad():
-            for i, (pc, latent_rep, cad_seq) in enumerate(dataloader):
-                
-                # PC -> z
-                pc, latent_rep = pc.to(device), latent_rep.to(device)
-                pc = pc.transpose(2, 1)
-                pred, _ = classifier(pc)
-                loss = criterion(pred,latent_rep)
-                
-                
-                pred = pred.unsqueeze(1) # CRITICAL: shape = (B,1,256), NOT (1,B,256) -> unsqueeze(1 not 0)
-                output = tr_agent.decode(pred)
-                
-                output["tgt_commands"] = cad_seq[:, :, 0].to(device)
-                output["tgt_args"] = cad_seq[:, :, 1:].to(device)
-                
-                # in the original deepcad repo they extract
-                # the commmands and params(args) in the get_item method of CADDataset
-                # There the batch dimension is not applied yet, this is why they access only
-                # two dims instead of 3. Here outside of get item i have to access 3 
+            output["tgt_commands"] = tgt_commands.to(device)
+            output["tgt_args"] = tgt_args.to(device)
+            
+            # in the original deepcad repo they extract
+            # the commmands and params(args) in the get_item method of CADDataset
+            # There the batch dimension is not applied yet, this is why they access only
+            # two dims instead of 3. Here outside of get item i have to access 3 
 
-                loss_dict = tr_agent.loss_func(output)
-                batch_out_vec = tr_agent.logits2vec(output)
+            loss_dict = tr_agent.loss_func(output)
+            batch_out_vec = tr_agent.logits2vec(output)
 
-                cmd_loss = loss_dict['loss_cmd'].detach().cpu().item()
-                args_loss = loss_dict['loss_args'].detach().cpu().item()
-                mse_running_loss += loss.detach().cpu().item()
-                cmd_running_loss += cmd_loss
-                args_running_loss += args_loss
+            cmd_loss = loss_dict['loss_cmd'].detach().cpu().item()
+            args_loss = loss_dict['loss_args'].detach().cpu().item()
+            mse_running_loss += loss.detach().cpu().item()
+            cmd_running_loss += cmd_loss
+            args_running_loss += args_loss
 
-                if args.verbose:
-                    print(f"Batch {i + 1}/{len(dataloader)}: "
-                          f"MSE-Loss: {loss.cpu().item():8.5f}", 
-                          f"Commands-Loss: {cmd_loss:8.5f}", 
-                          f"Arguments-Loss: {args_loss:8.5f}",
-                          flush=True)
+            if args.verbose:
+                print(f"Batch {i + 1}/{len(dataloader)}: "
+                        f"MSE-Loss: {loss.cpu().item():8.5f}", 
+                        f"Commands-Loss: {cmd_loss:8.5f}", 
+                        f"Arguments-Loss: {args_loss:8.5f}",
+                        flush=True)
 
-                end_idx = start_idx + pred.shape[0] # dynamic batch size
-                if args.save:
-                    z_dataset[start_idx:end_idx] = pred.cpu().numpy()
-                    cad_seq_dataset[start_idx:end_idx] = batch_out_vec
-                start_idx = end_idx
+            if args.save:
+                for j in range(batch_size):
+                    out_vec = batch_out_vec[j]
+                    seq_len = tgt_commands[j].tolist().index(EOS_IDX)
+                    save_path = os.path.join(h5_dir, f'{id[j]}_vec.h5')
+                    with h5py.File(save_path, 'w') as fp:
+                        fp.create_dataset('out_vec', data=out_vec[:seq_len], dtype=np.int32)
+                        fp.create_dataset('gt_vec', data=cad_seq[j][:seq_len], dtype=np.int32)
 
-                # if i == 10:
-                #     break
+            # if i == 10:
+            #     break
     monitor.log_and_print(f"Avg. MSE-Loss: {mse_running_loss/num_samples:8.5f} " # FIXME When not infering sets, change this
                           f"Avg. Command-Loss: {cmd_running_loss/num_samples:8.5f} " 
                           f"Avg. Argument-Loss: {args_running_loss/num_samples:8.5f}")
-    
-    if not args.save:
-        if os.path.exists(h5_file):
-            os.remove(h5_file)
     
     monitor.log_and_print("### DONE ###")
 
@@ -206,10 +200,10 @@ if __name__ == '__main__':
 #       Update req.txt conda
 
 # TODO  
-# Integrate command line arguments in configAE.py
-   #     denormalizing in jupyter notebook
+#       denormalizing in jupyter notebook
 #       from vector vec2solid
 # DONE
+#       Integrate command line arguments in configAE.py
 #       Loss theoretisch verstehen
 #       Collect inference metrics (Avg. MSE in PC->z, CADLoss z->CAD)
 #       STIMMEN EIGENTLICH PC UND LATENT ÜBEREIN?? -> Ja
