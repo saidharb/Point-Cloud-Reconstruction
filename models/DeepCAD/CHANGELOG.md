@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 
 ## [0.1.7] - 2025-03-04
 ### Changed
+- Enables optional argument parsing when instantiating the ```ConfigAE``` class
 - Transformed ```sketch_plane.origin``` from numpy array to list before passing it to ```gp_Pnt``` in ```visualize.py```
 - Changed imports in ```evaluate_ae_acc.py``` to match the repository structure
 - Changed all ```np.int``` to ```np.int32``` in ```evaluate_ae_acc.py``` and ```test.py```
