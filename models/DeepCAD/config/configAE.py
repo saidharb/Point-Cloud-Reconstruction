@@ -7,18 +7,44 @@ from models.DeepCAD.cadlib.macro import *
 
 
 class ConfigAE(object):
-    def __init__(self, phase, model_path="data/latent"):
+    def __init__(self, phase, model_path="data/latent", parse=True):
         self.is_train = phase == "train"
 
         self.set_configuration()
 
         # init hyperparameters and parse from command-line
-        parser, args = self.parse()
-        args = vars(args)
-        args.update({
+        args = {}
+        if parse:
+            parser, args = self.parse()
+            args = vars(args)
+            args.update({
+                "proj_dir": os.path.abspath(model_path),
+                "data_root": "data",
+                # "exp_name": 'pretrained',
+                "gpu_ids": "0",
+                "batch_size": 512,
+                "num_workers": 8,
+                "nr_epochs": 1000,
+                "lr": 1e-3,
+                "grad_clip": 1.0,
+                "warmup_step": 2000,
+                "cont": False,
+                # "ckpt": 1000,
+                "vis": False,
+                "save_frequency": 500,
+                "val_frequency": 10,
+                "vis_frequency": 2000,
+                "augment": False,
+                # Additional arguments for non-training mode
+                # "mode": None,
+                "outputs": None,
+                "z_path": None,
+        })
+        else:
+            args = {
             "proj_dir": os.path.abspath(model_path),
             "data_root": "data",
-            # "exp_name": 'pretrained',
+            "exp_name": 'pretrained',
             "gpu_ids": "0",
             "batch_size": 512,
             "num_workers": 8,
@@ -27,17 +53,18 @@ class ConfigAE(object):
             "grad_clip": 1.0,
             "warmup_step": 2000,
             "cont": False,
-            # "ckpt": 1000,
+            "ckpt": 1000,
             "vis": False,
             "save_frequency": 500,
             "val_frequency": 10,
             "vis_frequency": 2000,
             "augment": False,
             # Additional arguments for non-training mode
-            # "mode": None,
+            "mode": None,
             "outputs": None,
             "z_path": None,
-        })
+        }
+
 
         # set as attributes
         # print("----Experiment Configuration-----")

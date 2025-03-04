@@ -30,7 +30,7 @@ def parse_args():
     parser.add_argument('--batch_size', type=int, default=48, help='batch size')
     parser.add_argument('--verbose', action='store_true', default=False, help='output per batch metrics')
     parser.add_argument('--exp_name', type=str, required=True, 
-                        help='name of the experiment in results folder within the run directory')
+                        help='will be saved in "path/to/model/results/exp_name')
     parser.add_argument('--model_path', type=str, required=True, help='path to the trained PointNet++ model')
     parser.add_argument('--save', action='store_true', default=False,
                         help='save predicted latent representations and cad-sequences')
@@ -105,7 +105,7 @@ def main(args):
     num_samples = len(dataset) # FIXME When infering from a directory adapt this dynamically
     
     # Load DeepCAD model
-    cfg = ConfigAE('test') # Creates config data and model and log dirs if they don't exist
+    cfg = ConfigAE('test', parse=False) # Creates config data and model and log dirs if they don't exist
     tr_agent = TrainerAE(cfg) # Initializes CADTransformer, CADLoss, Adam and LRScheduler
     tr_agent.load_ckpt(cfg.ckpt)
     
@@ -205,7 +205,7 @@ if __name__ == '__main__':
 
 #       Update req.txt conda
 
-# TODO  CHANGELOG DEEPCAD
+# TODO  
 # Integrate command line arguments in configAE.py
    #     denormalizing in jupyter notebook
 #       from vector vec2solid
