@@ -3,6 +3,15 @@
 The content of this directory was cloned from [ChrisWu1997 DeepCAD](https://github.com/ChrisWu1997/DeepCAD) repository on January 7th 2025. 
 All notable changes to this project will be documented in this file.
 
+## [0.1.7] - 2025-03-04
+### Changed
+- Transformed ```sketch_plane.origin``` from numpy array to list before passing it to ```gp_Pnt``` in ```visualize.py```
+- Changed imports in ```evaluate_ae_acc.py``` to match the repository structure
+- Changed all ```np.int``` to ```np.int32``` in ```evaluate_ae_acc.py``` and ```test.py```
+- Changed imports in ```evaluate_ae_cd.py``` to match the repository structure
+- Changed the ```PC_ROOT``` in ```evaluate_ae_cd.py``` to match the repository structure
+
+
 ## [0.1.6] - 2025-02-14
 ### Changed
 - Changed ```np.float``` to ```np.float64``` in ```export2step.py```
