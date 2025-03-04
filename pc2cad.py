@@ -160,7 +160,7 @@ def main(args):
                         flush=True)
 
             if args.save:
-                for j in range(batch_size):
+                for j in range(cad_seq.shape[0]):
                     out_vec = batch_out_vec[j]
                     seq_len = tgt_commands[j].tolist().index(EOS_IDX)
                     save_path = os.path.join(h5_dir, f'{id[j]}_vec.h5')
@@ -168,8 +168,8 @@ def main(args):
                         fp.create_dataset('out_vec', data=out_vec[:seq_len], dtype=np.int32)
                         fp.create_dataset('gt_vec', data=cad_seq[j][:seq_len], dtype=np.int32)
 
-            # if i == 10:
-            #     break
+            if i == 10:
+                break
     monitor.log_and_print(f"Avg. MSE-Loss: {mse_running_loss/num_samples:8.5f} " # FIXME When not infering sets, change this
                           f"Avg. Command-Loss: {cmd_running_loss/num_samples:8.5f} " 
                           f"Avg. Argument-Loss: {args_running_loss/num_samples:8.5f}")
@@ -202,6 +202,7 @@ if __name__ == '__main__':
 # TODO  
 #       denormalizing in jupyter notebook
 #       from vector vec2solid
+#       README for evaluation scripts
 # DONE
 #       Integrate command line arguments in configAE.py
 #       Loss theoretisch verstehen

@@ -59,7 +59,7 @@ for name in tqdm(filenames):
             elif cmd == ARC_IDX:
                 tole_acc[3] = (out_param[j] == gt_param[j]).astype(np.int32)[3]
 
-            valid_param_acc = tole_acc[args_mask[cmd].astype(np.bool)].tolist()
+            valid_param_acc = tole_acc[args_mask[cmd].astype(bool)].tolist()
             param_acc.extend(valid_param_acc)
 
             each_param_cnt[cmd, np.arange(N_ARGS)] += 1
@@ -75,7 +75,9 @@ fp = open(save_path, "w")
 # overall accuracy (averaged over all data)
 avg_cmd_acc = np.mean(avg_cmd_acc)
 print("avg command acc (ACC_cmd):", avg_cmd_acc, file=fp)
-avg_param_acc = np.mean(avg_param_acc)
+num_nans = np.sum(np.isnan(avg_param_acc)) ###
+print(f"There are {num_nans} nan values in params.") ###
+avg_param_acc = np.nanmean(avg_param_acc) ###
 print("avg param acc (ACC_param):", avg_param_acc, file=fp)
 
 # acc of each command type
@@ -88,7 +90,7 @@ each_param_acc = each_param_acc * args_mask
 each_param_cnt = each_param_cnt * args_mask
 each_param_acc = each_param_acc / (each_param_cnt + 1e-6)
 for i in range(each_param_acc.shape[0]):
-    print(ALL_COMMANDS[i] + " param acc:", each_param_acc[i][args_mask[i].astype(np.bool)], file=fp)
+    print(ALL_COMMANDS[i] + " param acc:", each_param_acc[i][args_mask[i].astype(bool)], file=fp)
 fp.close()
 
 with open(save_path, "r") as fp:
