@@ -56,6 +56,11 @@ class BaseDataset(Dataset, ABC):
     def get_pc_path(self, idx):
         return self.pc[idx]
     
+    def get_id(self, idx):
+        pc_path = self.get_pc_path(idx)
+        id = os.path.splitext(os.path.basename(pc_path))[0]
+        return id
+    
     def get_cad_seq_path(self, idx):
         return self.cad_seq[idx]
     
@@ -144,4 +149,10 @@ class PointCloudEmbeddingSequenceDataset(BaseDataset):
         cad_vec = np.concatenate([cad_vec, EOS_VEC[np.newaxis].repeat(pad_len, axis=0)], axis=0)
         cad_vec = torch.tensor(cad_vec, dtype=torch.long)
         #cad_seq =  #torch.tensor(self.cad_seq[idx], dtype=torch.int64)
-        return point_cloud, latent_rep, cad_vec
+        id = self.get_id(idx)
+        data = {"pc": point_cloud,
+                "z": latent_rep,
+                "tgt_vec": cad_vec,
+                "id":  id
+            }
+        return data
