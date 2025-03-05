@@ -3,6 +3,10 @@
 The content of this directory was cloned from [ChrisWu1997 DeepCAD](https://github.com/ChrisWu1997/DeepCAD) repository on January 7th 2025. 
 All notable changes to this project will be documented in this file.
 
+## [0.1.8] - 2025-03-05
+### Changed
+- Fixed edge case in ```evaluate_ae_acc.py```, if the model predicts every command wrong. In that case, the boolean list of predicted valid arguments is empty and the ```nan``` values appear in the list of average param accuacies. Now an if-statment handles this special case.
+
 ## [0.1.7] - 2025-03-04
 ### Changed
 - Enables optional argument parsing when instantiating the ```ConfigAE``` class
