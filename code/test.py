@@ -121,7 +121,7 @@ def main(args):
 
     # Data
     num_workers = 0 if device.type == 'cpu' else 8
-    test_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'test')
+    test_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'test', verbose=args.verbose)
     test_dataloader = DataLoader(test_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = False)
     monitor.log(f"Length test set: {len(test_dataloader)}\n")
     monitor.log_and_print(f"Using device: {device}\n")

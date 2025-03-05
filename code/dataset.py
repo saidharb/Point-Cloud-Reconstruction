@@ -123,8 +123,8 @@ class BaseDataset(Dataset, ABC):
 
 class PointCloudEmbeddingDataset(BaseDataset):
     
-    def __init__(self, root, split):
-        super().__init__(root, split)
+    def __init__(self, root, split, verbose=False):
+        super().__init__(root, split, verbose=verbose)
         
     def __getitem__(self, idx):
         point_cloud = o3d.io.read_point_cloud(self.pc[idx])
@@ -135,8 +135,8 @@ class PointCloudEmbeddingDataset(BaseDataset):
 
 class PointCloudEmbeddingSequenceDataset(BaseDataset):
     
-    def __init__(self, root, split):
-        super().__init__(root, split)
+    def __init__(self, root, split, verbose=False):
+        super().__init__(root, split, verbose=verbose)
         
     def __getitem__(self, idx):
         point_cloud = o3d.io.read_point_cloud(self.pc[idx])
