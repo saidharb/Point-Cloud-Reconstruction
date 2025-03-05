@@ -65,7 +65,10 @@ for name in tqdm(filenames):
             each_param_cnt[cmd, np.arange(N_ARGS)] += 1
             each_param_acc[cmd, np.arange(N_ARGS)] += tole_acc
 
-    param_acc = np.mean(param_acc)
+    if len(param_acc) == 0: # No cmd was correct, therefore no param is recorded
+        param_acc = 0       # Therefore the param accuarcy for this sample is 0
+    else:
+        param_acc = np.mean(param_acc)
     avg_param_acc.append(param_acc)
     cmd_acc = np.mean(cmd_acc)
     avg_cmd_acc.append(cmd_acc)
@@ -74,10 +77,8 @@ save_path = result_dir + "_acc_stat.txt"
 fp = open(save_path, "w")
 # overall accuracy (averaged over all data)
 avg_cmd_acc = np.mean(avg_cmd_acc)
-print("avg command acc (ACC_cmd):", avg_cmd_acc, file=fp)
-num_nans = np.sum(np.isnan(avg_param_acc)) ###
-print(f"There are {num_nans} nan values in params.") ###
-avg_param_acc = np.nanmean(avg_param_acc) ###
+print("command acc (ACC_cmd):", avg_cmd_acc, file=fp)
+avg_param_acc = np.mean(avg_param_acc)
 print("avg param acc (ACC_param):", avg_param_acc, file=fp)
 
 # acc of each command type
