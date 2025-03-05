@@ -105,6 +105,16 @@ $ python pc2cad.py --exp_name "test_experiment" --model_path "path/to/model.pth"
 ### Interactive PC to CAD Pipeline and Loss Visualization
 In the notebook ```notebooks/pc2cad.ipynb``` one can interactively encode point clouds into latent representations, decode them into CAD-sequences and analyse, how the Command- and Argument-Loss are calculated in thorough detail. Furthermore all CAD-sequences can be exported to ```.step``` and ```.stl``` files and all temporary and final results are saved for later inspection.
 
+## Evaluation
+In order to evaluate the DeepCAD model in auto-encoding CAD-sequences and the PointNet++ and DeepCAD pipeline in reconstruction point clouds to CAD-models, there are two scripts provided by the authors of DeepCAD and modfied for this project. Bevor calcualting the metrics $ACC_{cmd}$ and $ACC_{cmd}$ first infer all samples (or whole sets) that you want to evaluate and place them within "path/to/output/dir". If you run ```pc2cad.py``` the outputs will be automatically saved in the model directory. To obtain the command and argument accuracy run:
+```bash
+$ python models/DeepCAD/evaluation/evaluate_ae_acc.py --src "path/to/output/dir"
+```
+To obtain the Chamfer Distance and Invalid Ratio run:
+```bash
+$ python models/DeepCAD/evaluation/evaluate_ae_cd.py --src "path/to/output/dir"
+```
+
 ## Pytest
 In order to check if the datasets comprise of all data and the data alligns (i.e. the correct point cloud path is assigned to the equivalent latent representation and CAD-sequence). To run the tests (after exporting Pythonpath) enter the following in the command line from the root directory:
 ```bash
