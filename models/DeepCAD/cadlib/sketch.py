@@ -104,7 +104,9 @@ class SketchBase(object):
         fig, ax = plt.subplots()
         self.draw(ax)
         ax.axis('equal')
+        ax.grid(True)
         fig.canvas.draw()
+        plt.show()
         X = np.array(fig.canvas.renderer.buffer_rgba())[:, :, :3]
         plt.close(fig)
         return X

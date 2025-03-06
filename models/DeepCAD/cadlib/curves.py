@@ -148,7 +148,7 @@ class Line(CurveBase):
         ydata = [self.start_point[1], self.end_point[1]]
         l1 = lines.Line2D(xdata, ydata, lw=1, color=color, axes=ax)
         ax.add_line(l1)
-        ax.plot(self.start_point[0], self.start_point[1], 'ok', color=color)
+        ax.plot(self.start_point[0], self.start_point[1], 'o', color=color)
         # ax.plot(self.end_point[0], self.end_point[1], 'ok')
 
     def sample_points(self, n=32):
@@ -322,9 +322,9 @@ class Arc(CurveBase):
             color=color
         )
         ax.add_patch(ap)
-        ax.plot(self.start_point[0], self.start_point[1], 'ok', color=color)
+        ax.plot(self.start_point[0], self.start_point[1], 'o', color=color)
         # ax.plot(self.center[0], self.center[1], 'ok', color=color)
-        ax.plot(self.mid_point[0], self.mid_point[1], 'ok', color=color)
+        ax.plot(self.mid_point[0], self.mid_point[1], 'o', color=color)
         # ax.plot(self.end_point[0], self.end_point[1], 'ok')
 
     def sample_points(self, n=32):

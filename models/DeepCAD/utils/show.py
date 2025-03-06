@@ -10,8 +10,8 @@ from OCC.Core.BRepCheck import BRepCheck_Analyzer
 import argparse
 import sys
 sys.path.append("..")
-from cadlib.extrude import CADSequence
-from cadlib.visualize import vec2CADsolid, create_CAD
+from models.DeepCAD.cadlib.extrude import CADSequence
+from models.DeepCAD.cadlib.visualize import vec2CADsolid, create_CAD
 
 
 parser = argparse.ArgumentParser()
@@ -45,10 +45,10 @@ for path in out_paths:
     try:
         if args.form == "h5":
             with h5py.File(path, 'r') as fp:
-                out_vec = fp["out_vec"][:].astype(np.float)
+                out_vec = fp["out_vec"][:].astype(np.float32)
                 out_shape = vec2CADsolid(out_vec)
                 if args.with_gt:
-                    gt_vec = fp["gt_vec"][:].astype(np.float)
+                    gt_vec = fp["gt_vec"][:].astype(np.float32)
                     gt_shape = vec2CADsolid(gt_vec)
         else:
             with open(path, 'r') as fp:
