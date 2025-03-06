@@ -3,6 +3,14 @@
 The content of this directory was cloned from [ChrisWu1997 DeepCAD](https://github.com/ChrisWu1997/DeepCAD) repository on January 7th 2025. 
 All notable changes to this project will be documented in this file.
 
+## [0.1.9] - 2025-03-06
+### Changed
+- Fixed redundant color assertion in ```.draw()``` methods in ```curves.py```
+- Fixed depreciated ```np.float``` to ```np.float32``` in ```show.py```
+
+### Added
+- Added grid and showing of plots in ```sketch.py```
+
 ## [0.1.8] - 2025-03-05
 ### Changed
 - Fixed edge case in ```evaluate_ae_acc.py```, if the model predicts every command wrong. In that case, the boolean list of predicted valid arguments is empty and the ```nan``` values appear in the list of average param accuacies. Now an if-statment handles this special case.
