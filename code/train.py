@@ -44,6 +44,8 @@ def parse_args():
     parser.add_argument('--lr_type', type=str, choices=['step', 'cosine'], default='step', 
                         help="Learning rate type: 'step' for reducing learning rate on val_loss plateau"
                         "or 'cosine' for cosine annealing with warm restarts.")
+    parser.add_argument('--msg', action='store_true', default=False,
+                        help="Use multi-scale-grouping instead of single-scale-grouping.")
     return parser.parse_args()
 
 def inplace_relu(m):
@@ -103,13 +105,16 @@ def main(args):
 
     # Load model
     sys.path.append(os.path.join(root_dir, 'models','Pointnet_Pointnet2_pytorch', 'models'))
-    model = importlib.import_module('pointnet2_cls_ssg')
+    model_name = 'pointnet2_cls_ssg'
+    if args.msg:
+        model_name = 'pointnet2_cls_msg'
+    model = importlib.import_module(model_name)
     classifier = model.get_model(256, normal_channel=False)
     criterion = model.get_loss_mse()
     classifier.apply(inplace_relu)
     first_epoch = 0
     if continue_training:
-        monitor.log_and_print("### Load pretrained PointNet++ ssg model ###\n")
+        monitor.log_and_print(f"### Load pretrained {model_name} model ###\n")
         model_path = os.path.join(save_dir, 'last.pth')
         saved_model = torch.load(model_path, map_location=torch.device(device), weights_only=True)
         state_dict = saved_model['model_state_dict']
@@ -139,7 +144,7 @@ def main(args):
         'batch_size': batch_size,
         'max_epochs': args.max_epochs,
         'optimizer': 'Adam',
-        'model_type': 'pointnet2_cls_ssg',
+        'model_type': model_name,
         'save_interval': args.save_interval,
         'early_stopping': args.early_stopping,
         'start_time': date_and_time,
@@ -252,8 +257,8 @@ def main(args):
                     f"RMSE: {scores_train.get_batch_rmse(loss_train):.8f} --- "
                     f"MAE: {scores_train.get_batch_mae(pred, latent_rep):.8f}", flush=True)
 
-            if i == 1:
-                break
+            # if i == 1:
+            #     break
 
         scores_train.epoch_finished()
 
@@ -281,8 +286,8 @@ def main(args):
                         f"RMSE: {scores_val.get_batch_rmse(loss_val):.8f} --- "
                         f"MAE: {scores_val.get_batch_mae(pred, latent_rep):.8f}", flush=True)
 
-                if j == 1:
-                    break
+                # if j == 1:
+                #     break
         
         epoch_duration = (time.time() - epoch_start_time) / 60.0
         scores_val.epoch_finished()
@@ -347,18 +352,10 @@ if __name__ == '__main__':
 # Tune learning rate hyperparameter 
 # (look at convergence of loss for that) (too high?)
 # reduce patience? 
-# msg model?
 # MOVE to main directory...
 
-# PIPELINE
-# - maybe use msg model? -> in this case first check how to identify which model was used (config file/log file?)
-# maybe train DeepCAD myself?
-# Write pipeline PC->PN++->z->DeepCAD->step --> Thereby check data integrity
-# Why does import into pipeline work now that I appended sys.path? Find out exactly why
-
 # README
-# Envirnonment req.txt for DeepCAD
+# Envirnonment req.txt for DeepCAD conda
 # wandb for testing
-# train.py cosine anneal und step LR
 
 
