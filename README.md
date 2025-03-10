@@ -69,8 +69,7 @@ $ python code/train.py
 | `--wandb`          | `bool`  | `False`      | Enable WandB tracking                                                      |
 | `--name`           | `str`   | `'test_run'` | Name of WandB run                                                          |
 | `--output_dir`     | `str`   | required     | Name of of the model save directory relative to root directory             |
-| `--lr_type`     | `str`   | 'step' or 'cosine'     | Learning rate type: 'step' for reducing learning rate on val_loss plateau"
-                        "or 'cosine' for cosine annealing with warm restarts             |
+| `--lr_type`     | `str`   | 'step' or 'cosine'     | Learning rate type: 'step' for reducing learning rate on val_loss plateau or 'cosine' for cosine annealing with warm restarts|
 | `--msg`     | `bool`   | False     | Use multi-scale-grouping instead of single-scale-grouping       |
                         
 
