@@ -46,6 +46,8 @@ def parse_args():
                         "or 'cosine' for cosine annealing with warm restarts.")
     parser.add_argument('--msg', action='store_true', default=False,
                         help="Use multi-scale-grouping instead of single-scale-grouping.")
+    parser.add_argument('--aug', action='store_true', default=False, 
+                        help="Turn on point cloud agumentation (random dropout, scale and shift)")
     return parser.parse_args()
 
 def inplace_relu(m):
@@ -241,11 +243,12 @@ def main(args):
         for i, (pc, latent_rep) in enumerate(train_dataloader):
             optimizer.zero_grad()
 
-            pc = pc.data.numpy()
-            pc = provider.random_point_dropout(pc)
-            pc[:, :, 0:3] = provider.random_scale_point_cloud(pc[:, :, 0:3])
-            pc[:, :, 0:3] = provider.shift_point_cloud(pc[:, :, 0:3])
-            pc = torch.Tensor(pc)
+            if args.aug:
+                pc = pc.data.numpy()
+                pc = provider.random_point_dropout(pc)
+                pc[:, :, 0:3] = provider.random_scale_point_cloud(pc[:, :, 0:3])
+                pc[:, :, 0:3] = provider.shift_point_cloud(pc[:, :, 0:3])
+                pc = torch.Tensor(pc)
             pc = pc.transpose(2, 1) # [B, C, N]
 
             pc, latent_rep = pc.to(device), latent_rep.to(device)
@@ -264,8 +267,8 @@ def main(args):
                     f"RMSE: {scores_train.get_batch_rmse(loss_train):.8f} --- "
                     f"MAE: {scores_train.get_batch_mae(pred, latent_rep):.8f}", flush=True)
 
-            if i == 1:
-                break
+            # if i == 0:
+            #     break
 
         scores_train.epoch_finished()
 
@@ -293,8 +296,8 @@ def main(args):
                         f"RMSE: {scores_val.get_batch_rmse(loss_val):.8f} --- "
                         f"MAE: {scores_val.get_batch_mae(pred, latent_rep):.8f}", flush=True)
 
-                if j == 1:
-                    break
+                # if j == 0:
+                #     break
         
         epoch_duration = (time.time() - epoch_start_time) / 60.0
         scores_val.epoch_finished()
