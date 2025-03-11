@@ -42,8 +42,9 @@ def parse_args():
     parser.add_argument('--lr_patience', type=int, default=15, help="patience in epochs for learning rate decay")
     parser.add_argument('--output_dir', type=str, required=True, help='name of output directory in trained_models')
     parser.add_argument('--lr_type', type=str, choices=['step', 'cosine', 'step_adv'], default='step', 
-                        help="Learning rate type: 'step' for reducing learning rate on val_loss plateau"
-                        "or 'cosine' for cosine annealing with warm restarts.")
+                        help="Learning rate type: step for a simple step learning rate scheduler, "
+                        "step_adv for reducing learning rate on val_loss plateau or cosine for cosine "
+                        "annealing with warm restarts")
     parser.add_argument('--msg', action='store_true', default=False,
                         help="Use multi-scale-grouping instead of single-scale-grouping.")
     parser.add_argument('--aug', action='store_true', default=False, 
