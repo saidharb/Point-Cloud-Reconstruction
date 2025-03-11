@@ -15,7 +15,7 @@ from dataset import PointCloudEmbeddingDataset
 from models.Pointnet_Pointnet2_pytorch import provider
 from metrics import RegressionRunningScore
 from utils import SaveBestModel, EarlyStopping, Logger, LearningRateStepScheduler
-from LRSchedulers import CosineAnnealWarmRestart
+from LRSchedulers import CosineAnnealWarmRestart, StepLR
 # torch.manual_seed(42)
         
 def parse_args():
@@ -41,7 +41,7 @@ def parse_args():
     parser.add_argument('--name', type=str, default="test_run", help="name of WandB run")
     parser.add_argument('--lr_patience', type=int, default=15, help="patience in epochs for learning rate decay")
     parser.add_argument('--output_dir', type=str, required=True, help='name of output directory in trained_models')
-    parser.add_argument('--lr_type', type=str, choices=['step', 'cosine'], default='step', 
+    parser.add_argument('--lr_type', type=str, choices=['step', 'cosine', 'step_adv'], default='step', 
                         help="Learning rate type: 'step' for reducing learning rate on val_loss plateau"
                         "or 'cosine' for cosine annealing with warm restarts.")
     parser.add_argument('--msg', action='store_true', default=False,
@@ -201,7 +201,7 @@ def main(args):
         weight_decay=1e-4
         )
     
-    if args.lr_type == 'step':
+    if args.lr_type == 'step_adv':
         scheduler = LearningRateStepScheduler(optimizer, 
                                               0.5, 
                                               args.lr_patience, 
@@ -217,6 +217,13 @@ def main(args):
                                             factor = 0.8, 
                                             min_lr=1e-7, 
                                             cont=continue_training)
+    elif args.lr_type == 'step':
+        scheduler = StepLR(optimizer,
+                           monitor,
+                           save_dir,
+                           args.lr_patience,
+                           0.1,
+                           cont=continue_training)
 
     scores_train = RegressionRunningScore(len(train_dataloader), save_dir, phase = 'train', cont = continue_training)
     scores_val = RegressionRunningScore(len(val_dataloader), save_dir, phase = 'validation', cont = continue_training)
@@ -257,8 +264,8 @@ def main(args):
                     f"RMSE: {scores_train.get_batch_rmse(loss_train):.8f} --- "
                     f"MAE: {scores_train.get_batch_mae(pred, latent_rep):.8f}", flush=True)
 
-            # if i == 1:
-            #     break
+            if i == 1:
+                break
 
         scores_train.epoch_finished()
 
@@ -286,8 +293,8 @@ def main(args):
                         f"RMSE: {scores_val.get_batch_rmse(loss_val):.8f} --- "
                         f"MAE: {scores_val.get_batch_mae(pred, latent_rep):.8f}", flush=True)
 
-                # if j == 1:
-                #     break
+                if j == 1:
+                    break
         
         epoch_duration = (time.time() - epoch_start_time) / 60.0
         scores_val.epoch_finished()

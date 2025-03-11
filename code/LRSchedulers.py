@@ -15,6 +15,7 @@ class BaseLRScheduler():
         self.save_dir = save_dir
         self.min_lr = min_lr
         self.cont = cont
+        self.lr_history = []
 
     def get_current_learning_rate(self):
         return self.optimizer.param_groups[0]['lr']
@@ -55,7 +56,6 @@ class CosineAnnealWarmRestart(BaseLRScheduler):
         self.factor = factor # Factor that decreases initial learning rate per restart
 
         self.initial_lr = self.get_current_learning_rate()
-        self.lr_history = []
         self.json_save_path = os.path.join(self.save_dir, "scheduler_state.json")
 
         if cont:
@@ -82,7 +82,7 @@ class CosineAnnealWarmRestart(BaseLRScheduler):
         self.T_0 = state.get("T_0", 0)
         self.T_cur = state.get("T_cur", [])
         self.lr_history = state.get("lr_history")
-        self.initial_lr = state.get("initial_lr", 0.001)
+        self.initial_lr = state.get("initial_lr")
 
     def update_state(self):
         self.T_cur += 1
@@ -93,3 +93,54 @@ class CosineAnnealWarmRestart(BaseLRScheduler):
             self.T_0 *= self.T_mult
             self.initial_lr *= self.factor
         self.set_new_learning_rate()
+
+class StepLR(BaseLRScheduler):
+    def __init__(self, optimizer, logger, save_dir, patience, gamma, min_lr=0.0, cont=False):
+        super().__init__(optimizer, logger, save_dir, min_lr, cont)
+        self.patience = patience
+
+        self.initial_lr = self.get_current_learning_rate()
+        self.json_save_path = os.path.join(self.save_dir, "scheduler_state.json")
+        self.epoch = 0
+        self.gamma = gamma
+
+        if cont:
+            self.load_state()
+            self.update_state()
+
+    def compute_lr(self):
+        lr = self.gamma * self.get_current_learning_rate()
+        return lr
+
+    def save_state(self):
+        state = {
+            "lr_history": self.lr_history,
+            "initial_lr": self.initial_lr,
+            "epoch": self.epoch,
+            "current_lr": self.get_current_learning_rate()
+        }
+        with open(self.json_save_path, "w") as f:
+            json.dump(state, f)
+
+    def load_state(self):
+        with open(self.json_save_path, "r") as f:
+            state = json.load(f)
+        self.lr_history = state.get("lr_history")
+        self.initial_lr = state.get("initial_lr")
+        self.epoch = state.get("epoch")
+        current_lr = state.get("current_lr")
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = current_lr
+
+    def update_state(self):
+        self.epoch += 1
+        print(self.epoch)
+        print(self.patience)
+        print(self.epoch % self.patience)
+        if self.epoch % self.patience == 0:
+            self.logger.log_and_print(f"Patience of {self.patience} epochs reached. "
+                                      f"Reducing learning rate by factor {self.gamma} from "
+                                      f"{self.get_current_learning_rate()} to "
+                                      f"{self.get_current_learning_rate() * self.gamma}")
+            self.set_new_learning_rate()
+            self.epoch = 0
