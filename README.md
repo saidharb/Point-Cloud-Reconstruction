@@ -71,7 +71,7 @@ $ python code/train.py
 | `--output_dir`     | `str`   | required     | Name of of the model save directory relative to root directory             |
 | `--lr_type`     | `str`   | `"step"`, `"step_adv"` or `"cosine"`     | Learning rate type: `step` for a simple step learning rate scheduler, `step_adv` for reducing learning rate on val_loss plateau or `cosine` for cosine annealing with warm restarts|
 | `--msg`     | `bool`   | `False`     | Use multi-scale-grouping instead of single-scale-grouping       |
-| `--auf`     | `bool`   | `False`     | Turn on point cloud agumentation (random dropout, scale and shift)       |
+| `--aug`     | `bool`   | `False`     | Turn on point cloud agumentation (random dropout, scale and shift)       |
                         
 
 The training script will create a directory `models/trained_models` where all training runs are saved including the best and last model, checkpoint models, logging information and a csv file containing the metrics. The learning rate will be halfed, if the validation loss did not decrease for the number of epochs specified in `lr_patience`.
