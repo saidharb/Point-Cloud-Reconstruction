@@ -2,6 +2,7 @@ import os
 from glob import glob
 import json
 from abc import ABC, abstractmethod
+import random
 
 import h5py
 import numpy as np
@@ -11,6 +12,8 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 
 from models.DeepCAD.cadlib.macro import EOS_VEC, MAX_TOTAL_LEN
+
+N_POINTS = 2048
 
 class BaseDataset(Dataset, ABC):
     def __init__(self, root, split, verbose=False):
@@ -129,6 +132,8 @@ class PointCloudEmbeddingDataset(BaseDataset):
     def __getitem__(self, idx):
         point_cloud = o3d.io.read_point_cloud(self.pc[idx])
         point_cloud = torch.tensor(np.asarray(point_cloud.points), dtype = torch.float32) # [B, N, C]
+        sample_idx = random.sample(list(range(point_cloud.shape[0])), N_POINTS)
+        point_cloud = point_cloud[sample_idx]
         latent_rep = torch.tensor(self.latent[idx], dtype = torch.float32) # [B, D]
         return point_cloud, latent_rep
 
