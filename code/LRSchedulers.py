@@ -134,9 +134,6 @@ class StepLR(BaseLRScheduler):
 
     def update_state(self):
         self.epoch += 1
-        print(self.epoch)
-        print(self.patience)
-        print(self.epoch % self.patience)
         if self.epoch % self.patience == 0:
             self.logger.log_and_print(f"Patience of {self.patience} epochs reached. "
                                       f"Reducing learning rate by factor {self.gamma} from "
