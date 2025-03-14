@@ -73,7 +73,7 @@ def main(args):
 
     # Create PointNet++
     sys.path.append(os.path.join(root_dir, 'models','Pointnet_Pointnet2_pytorch', 'models'))
-    model = importlib.import_module('pointnet2_cls_ssg')
+    model = importlib.import_module(config['model_type'])
     classifier = model.get_model(latent_dim, normal_channel=False)
     criterion = model.get_loss_mse()
     classifier.apply(inplace_relu)
