@@ -151,7 +151,8 @@ def main(args):
         'save_interval': args.save_interval,
         'early_stopping': args.early_stopping,
         'start_time': date_and_time,
-        'lr_type': args.lr_type
+        'lr_type': args.lr_type,
+        'augmentation': args.aug
     }
 
     if continue_training:
