@@ -1,7 +1,7 @@
 # Point Cloud to CAD Model Reconstruction using Deep Learning
 GitHub repository for my Masters Thesis at IGP, TU Braunschweig
 
-The goal of this project is to predict CAD sequences from input point clouds. 
+The goal of this project is to predict CAD sequences from input point clouds. The pipeline consists of PointNet++ to encode the point clouds into a 256-dimensional latent space, and the DeepCAD decoder to decode the latent vectors into the CAD-sequence.
 
 ## DeepCAD
 The DeepCAD model from the [DeepCAD: A Deep Generative Network for Computer-Aided Design Models](https://arxiv.org/abs/2105.09492) ICCV 2021 by Wu et al. will serve in two purposes: First as an encoder for CAD sequences and second as the decoder for the point cloud latent representations. For the purpose of this project the original code will be modified (cf. [CHANGELOG.md](https://github.com/saidharb/Point-Cloud-Reconstruction/blob/main/models/DeepCAD/CHANGELOG.md)).
