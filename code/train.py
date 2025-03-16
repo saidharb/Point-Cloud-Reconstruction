@@ -49,6 +49,8 @@ def parse_args():
                         help="Use multi-scale-grouping instead of single-scale-grouping.")
     parser.add_argument('--aug', action='store_true', default=False, 
                         help="Turn on point cloud agumentation (random dropout, scale and shift)")
+    parser.add_argument('--gpu', action='store_true', default=False, 
+                        help="Use multiple GPU's for training.")
     return parser.parse_args()
 
 def inplace_relu(m):
@@ -133,7 +135,7 @@ def main(args):
     monitor.log_and_print(f"Using device: {device}\n")
     monitor.log_and_print(f"Number of devices: {torch.cuda.device_count()}")#
     batch_size = args.batch_size
-    if torch.cuda.device_count() > 1:
+    if args.gpu and torch.cuda.device_count() > 1:
         monitor.log_and_print(f"Using {torch.cuda.device_count()} GPUs.\n")#
         classifier = nn.DataParallel(classifier)
         batch_size *= torch.cuda.device_count()
@@ -359,12 +361,12 @@ if __name__ == '__main__':
 
 
 # TODO
-# 2 new trainigns:
-# one with cosine annealing with warm startup and one with tuned lrStepOnPlateeau
-# Tune learning rate hyperparameter 
-# (look at convergence of loss for that) (too high?)
-# reduce patience? 
-# MOVE to main directory...
+# NEW Training same as "non_aug_run", but with pc augmentation?
+# Scrutinize the model the authors used. Is it the same as mine? What other differences 
+# could there be??
+# Maybe use only one GPU? author mentions that
+# what is this "with_normal" thing?
+# Maybe try again to make the github model work
 
 # README
 # Envirnonment req.txt for DeepCAD conda
