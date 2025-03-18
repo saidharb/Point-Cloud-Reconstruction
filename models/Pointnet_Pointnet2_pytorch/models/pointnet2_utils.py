@@ -159,7 +159,7 @@ def sample_and_group_all(xyz, points):
 
 
 class PointNetSetAbstraction(nn.Module):
-    def __init__(self, npoint, radius, nsample, in_channel, mlp, group_all):
+    def __init__(self, npoint, radius, nsample, in_channel, mlp, group_all, bias=True):
         super(PointNetSetAbstraction, self).__init__()
         self.npoint = npoint
         self.radius = radius
@@ -168,7 +168,7 @@ class PointNetSetAbstraction(nn.Module):
         self.mlp_bns = nn.ModuleList()
         last_channel = in_channel
         for out_channel in mlp:
-            self.mlp_convs.append(nn.Conv2d(last_channel, out_channel, 1))
+            self.mlp_convs.append(nn.Conv2d(last_channel, out_channel, 1, bias=bias))
             self.mlp_bns.append(nn.BatchNorm2d(out_channel))
             last_channel = out_channel
         self.group_all = group_all
@@ -203,7 +203,7 @@ class PointNetSetAbstraction(nn.Module):
 
 
 class PointNetSetAbstractionMsg(nn.Module):
-    def __init__(self, npoint, radius_list, nsample_list, in_channel, mlp_list):
+    def __init__(self, npoint, radius_list, nsample_list, in_channel, mlp_list, bias=True):
         super(PointNetSetAbstractionMsg, self).__init__()
         self.npoint = npoint
         self.radius_list = radius_list
@@ -215,7 +215,7 @@ class PointNetSetAbstractionMsg(nn.Module):
             bns = nn.ModuleList()
             last_channel = in_channel + 3
             for out_channel in mlp_list[i]:
-                convs.append(nn.Conv2d(last_channel, out_channel, 1))
+                convs.append(nn.Conv2d(last_channel, out_channel, 1, bias=bias))
                 bns.append(nn.BatchNorm2d(out_channel))
                 last_channel = out_channel
             self.conv_blocks.append(convs)
