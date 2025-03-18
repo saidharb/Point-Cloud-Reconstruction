@@ -51,6 +51,8 @@ def parse_args():
                         help="Turn on point cloud agumentation (random dropout, scale and shift)")
     parser.add_argument('--gpu', action='store_true', default=False, 
                         help="Use multiple GPU's for training.")
+    parser.add_argument('--arch', type=str, choices=['own', 'copy_author'], default='own', 
+                        help="Which architecture configuration to use.")
     return parser.parse_args()
 
 def inplace_relu(m):
@@ -114,7 +116,14 @@ def main(args):
     if args.msg:
         model_name = 'pointnet2_cls_msg'
     model = importlib.import_module(model_name)
-    classifier = model.get_model(256, normal_channel=False)
+
+    if args.arch == "own":
+        classifier = model.get_model(256, normal_channel=False)
+    elif args.arch == "copy_author":
+        classifier = model.get_model_new(256, normal_channel=False)
+    else:
+        raise ValueError(f"Invalid architecture '{args.arch}'. Choose either 'own' or 'copy_author'.")
+    
     criterion = model.get_loss_mse()
     classifier.apply(inplace_relu)
     first_epoch = 0
@@ -154,7 +163,10 @@ def main(args):
         'early_stopping': args.early_stopping,
         'start_time': date_and_time,
         'lr_type': args.lr_type,
-        'augmentation': args.aug
+        'msg': args.msg,
+        'augmentation': args.aug,
+        'gpu': args.gpu,
+        'architecture': args.arch
     }
 
     if continue_training:
@@ -371,5 +383,6 @@ if __name__ == '__main__':
 # README
 # Envirnonment req.txt for DeepCAD conda
 # wandb for testing
+# gpu arg in parser
 
 

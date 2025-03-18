@@ -4,6 +4,10 @@ from pointnet2_utils import PointNetSetAbstractionMsg, PointNetSetAbstraction
 
 
 class get_model(nn.Module):
+    """
+    This is how I created the first training script
+        CONFIG NAME: own
+    """
     def __init__(self,num_class,normal_channel=True):
         super(get_model, self).__init__()
         in_channel = 3 if normal_channel else 0
@@ -39,6 +43,8 @@ class get_model(nn.Module):
     
 class get_model_new(nn.Module):
     """
+    This is a (if no errors) exact copy of the model that the authors used.
+        CONFIG NAME: copy_author
         CHANGED
         - Adapted radius, n_sample and mlp's for sa1, sa2, sa3
         - Optional Bias in linear layers, here: NO BIAS
@@ -50,7 +56,7 @@ class get_model_new(nn.Module):
         - Dropout from head
     """
     def __init__(self,num_class,normal_channel=True):
-        super(get_model, self).__init__()
+        super(get_model_new, self).__init__()
         in_channel = 3 if normal_channel else 0
         self.normal_channel = normal_channel
         self.sa1 = PointNetSetAbstractionMsg(512, [0.1], [64], in_channel,[[32, 32, 64]], bias=False)
