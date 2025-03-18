@@ -94,7 +94,7 @@ class Line(CurveBase):
         self.end_point = end_point
 
     def __str__(self):
-        return "Line: start({}), end({})".format(self.start_point.round(4), self.end_point.round(4))
+        return "Line: start({}), end({})".format(self.start_point, self.end_point)
 
     @staticmethod
     def from_dict(stat):
@@ -170,8 +170,8 @@ class Arc(CurveBase):
         self.mid_point = self.get_mid_point()
 
     def __str__(self):
-        return "Arc: start({}), end({}), mid({})".format(self.start_point.round(4), self.end_point.round(4),
-                                                         self.mid_point.round(4))
+        return "Arc: start({}), end({}), mid({})".format(self.start_point, self.end_point, 
+                                                         self.mid_point)
 
     @staticmethod
     def from_dict(stat):
@@ -350,7 +350,7 @@ class Circle(CurveBase):
         self.normal = normal
 
     def __str__(self):
-        return "Circle: center({}), radius({})".format(self.center.round(4), round(self.radius, 4))
+        return "Circle: center({}), radius({})".format(self.center, self.radius)
 
     @staticmethod
     def from_dict(stat):
