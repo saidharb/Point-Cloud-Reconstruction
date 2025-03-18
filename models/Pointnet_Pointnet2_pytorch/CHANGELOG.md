@@ -4,6 +4,10 @@ The content of this directory was cloned from [yanx27 Pointnet_Pointnet2_pytorch
 It is a pytorch implementation of [charlesq34 pointnet](https://github.com/charlesq34/pointnet) repository.
 All notable changes to this project will be documented in this file.
 
+## [0.1.4] - 2025-03-18
+### Added
+- Added new modified architecture ```get_model_new()``` in ```pointnet2_cls_msg.py```.
+
 ## [0.1.3] - 2025-03-10
 ### Removed
 - Removed final softmax layer from `pointnet2_cls_msg.py`
