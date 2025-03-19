@@ -221,7 +221,7 @@ def main(args):
     
     if args.lr_type == 'step_adv':
         scheduler = LearningRateStepScheduler(optimizer, 
-                                              0.5, 
+                                              0.1, 
                                               args.lr_patience, 
                                               monitor, 
                                               save_dir, 
