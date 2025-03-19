@@ -146,6 +146,8 @@ class PointCloudEmbeddingSequenceDataset(BaseDataset):
     def __getitem__(self, idx):
         point_cloud = o3d.io.read_point_cloud(self.pc[idx])
         point_cloud = torch.tensor(np.asarray(point_cloud.points), dtype = torch.float32) # [B, N, C]
+        sample_idx = random.sample(list(range(point_cloud.shape[0])), N_POINTS)
+        point_cloud = point_cloud[sample_idx]
         latent_rep = torch.tensor(self.latent[idx], dtype = torch.float32) # [B, D]
         
         with h5py.File(self.cad_seq[idx], 'r') as fp:
