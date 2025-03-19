@@ -374,10 +374,6 @@ if __name__ == '__main__':
 
 # TODO
 # NEW Training same as "non_aug_run", but with pc augmentation?
-# Scrutinize the model the authors used. Is it the same as mine? What other differences 
-# could there be??
-# Maybe use only one GPU? author mentions that
-# what is this "with_normal" thing?
 # Maybe try again to make the github model work
 
 # README

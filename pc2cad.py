@@ -183,14 +183,6 @@ if __name__ == '__main__':
 
 # TODO  
 
-#       Enable optional saving? (Saving whole train set is a lot)
-
-#       Maybe save the predicted latent reps and predicted CAD sequences 
-#       as one file per sample -> Thereby one can save different sequence lengths
-#       And have a naming scheme that corresponds to the original deepcad repo
-#       However it is still possible to do it ins ingle files I guess
-#       Chatgpt recommends to do one single file
-
 #       differentiation if CAD sequence targets are available or not -> new pc testing
 
 #       export2step
