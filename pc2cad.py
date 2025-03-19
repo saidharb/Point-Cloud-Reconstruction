@@ -74,7 +74,12 @@ def main(args):
     # Create PointNet++
     sys.path.append(os.path.join(root_dir, 'models','Pointnet_Pointnet2_pytorch', 'models'))
     model = importlib.import_module(config['model_type'])
-    classifier = model.get_model(latent_dim, normal_channel=False)
+    if config['architecture'] == 'own':
+        classifier = model.get_model(256, normal_channel=False)
+    elif args.arch == "copy_author":
+        classifier = model.get_model_new(256, normal_channel=False)
+    else:
+        raise ValueError(f"Invalid architecture '{args.arch}'. Choose either 'own' or 'copy_author'.")
     criterion = model.get_loss_mse()
     classifier.apply(inplace_relu)
 
