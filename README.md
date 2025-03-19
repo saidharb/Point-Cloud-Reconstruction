@@ -110,7 +110,17 @@ $ python pc2cad.py --exp_name "test_experiment" --model_path "path/to/model.pth"
 In the notebook ```notebooks/pc2cad.ipynb``` one can interactively encode point clouds into latent representations, decode them into CAD-sequences and analyse, how the Command- and Argument-Loss are calculated in thorough detail. Furthermore all CAD-sequences can be exported to ```.step``` and ```.stl``` files and all temporary and final results are saved for later inspection.
 
 ## Evaluation
-In order to evaluate the DeepCAD model in auto-encoding CAD-sequences and the PointNet++ and DeepCAD pipeline in reconstruction point clouds to CAD-models, there are two scripts provided by the authors of DeepCAD and modfied for this project. Bevor calcualting the metrics $ACC_{cmd}$ and $ACC_{cmd}$ first infer all samples (or whole sets) that you want to evaluate and place them within "path/to/output/dir". If you run ```pc2cad.py``` the outputs will be automatically saved in the model directory. To obtain the command and argument accuracy run:
+In order to evaluate the DeepCAD model in auto-encoding CAD-sequences and the PointNet++ and DeepCAD pipeline in reconstruction point clouds to CAD-models, there are two scripts provided by the authors of DeepCAD and modfied for this project. Bevor calcualting the metrics $ACC_{cmd}$ and $ACC_{cmd}$ first infer all samples (or whole sets) that you want to evaluate and place them within "path/to/output/dir". If you run ```pc2cad.py``` the outputs will be automatically saved in the model directory. 
+
+Test the PointNet++ to get the MSE:
+```bash
+$ python code/test.py --model_path "path/to/model/from/root"
+```
+Infer all test point clouds to obtain the vectorized CAD-sequences. The output directory specified by ```exp_name``` is saved in the model directory under "results". Also it is the one to provide for the evaluation scripts:
+```bash
+$ python pc2cad.py --exp_name "recreate_metrics" --model_path "path/to/model/from/root" --phase "test"
+```
+To obtain the command and argument accuracy run:
 ```bash
 $ python models/DeepCAD/evaluation/evaluate_ae_acc.py --src "path/to/output/dir"
 ```
