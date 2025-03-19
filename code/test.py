@@ -76,7 +76,7 @@ def main(args):
     model = importlib.import_module(config['model_type'])
     if config['architecture'] == 'own':
         classifier = model.get_model(256, normal_channel=False)
-    elif args.arch == "copy_author":
+    elif config['architecture'] == "copy_author":
         classifier = model.get_model_new(256, normal_channel=False)
     else:
         raise ValueError(f"Invalid architecture '{args.arch}'. Choose either 'own' or 'copy_author'.")
