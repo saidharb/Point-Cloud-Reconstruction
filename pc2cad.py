@@ -108,7 +108,7 @@ def main(args):
     num_workers = 0 if device.type == 'cpu' else 8
     dataset = PointCloudEmbeddingSequenceDataset(DATA_DIR, args.phase)
     dataloader = DataLoader(dataset, batch_size = batch_size, num_workers = num_workers, shuffle = False)
-    num_samples = len(dataset) # FIXME When infering from a directory adapt this dynamically
+    num_samples = len(dataloader) # FIXME When infering from a directory adapt this dynamically
     
     # Load DeepCAD model
     cfg = ConfigAE('test', parse=False) # Creates config data and model and log dirs if they don't exist
@@ -175,7 +175,7 @@ def main(args):
 
             # if i == 10:
             #     break
-    monitor.log_and_print(f"Avg. MSE-Loss: {mse_running_loss/num_samples:8.5f} " # FIXME When not infering sets, change this
+    monitor.log_and_print(f"Avg. MSE-Loss: {mse_running_loss/num_samples:8.8f} " # FIXME When not infering sets, change this
                           f"Avg. Command-Loss: {cmd_running_loss/num_samples:8.5f} " 
                           f"Avg. Argument-Loss: {args_running_loss/num_samples:8.5f}")
     
