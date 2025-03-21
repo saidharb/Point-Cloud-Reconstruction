@@ -93,7 +93,7 @@ class get_model_tanh(nn.Module):
         CONFIG NAME: tanh
     """
     def __init__(self,num_class,normal_channel=True):
-        super(get_model, self).__init__()
+        super(get_model_tanh, self).__init__()
         in_channel = 3 if normal_channel else 0
         self.normal_channel = normal_channel
         self.sa1 = PointNetSetAbstractionMsg(512, [0.1, 0.2, 0.4], [16, 32, 128], in_channel,[[32, 32, 64], [64, 64, 128], [64, 96, 128]])
