@@ -51,7 +51,7 @@ def parse_args():
                         help="Turn on point cloud agumentation (random dropout, scale and shift)")
     parser.add_argument('--gpu', action='store_true', default=False, 
                         help="Use multiple GPU's for training.")
-    parser.add_argument('--arch', type=str, choices=['own', 'copy_author'], default='own', 
+    parser.add_argument('--arch', type=str, choices=['own', 'copy_author', 'tanh'], default='own', 
                         help="Which architecture configuration to use.")
     return parser.parse_args()
 
@@ -117,12 +117,15 @@ def main(args):
         model_name = 'pointnet2_cls_msg'
     model = importlib.import_module(model_name)
 
-    if args.arch == "own":
-        classifier = model.get_model(256, normal_channel=False)
-    elif args.arch == "copy_author":
-        classifier = model.get_model_new(256, normal_channel=False)
+    if 'architecture' in config:
+        if config['architecture'] == 'own':
+            classifier = model.get_model(256, normal_channel=False)
+        elif config['architecture'] == "copy_author":
+            classifier = model.get_model_copy_author(256, normal_channel=False)
+        elif config['architecture'] == "tanh":
+            classifier = model.get_model_tanh(256, normal_channel=False)
     else:
-        raise ValueError(f"Invalid architecture '{args.arch}'. Choose either 'own' or 'copy_author'.")
+        classifier = model.get_model(256, normal_channel=False)
     
     criterion = model.get_loss_mse()
     classifier.apply(inplace_relu)

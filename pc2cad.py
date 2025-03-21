@@ -78,9 +78,9 @@ def main(args):
         if config['architecture'] == 'own':
             classifier = model.get_model(256, normal_channel=False)
         elif config['architecture'] == "copy_author":
-            classifier = model.get_model_new(256, normal_channel=False)
-        else:
-            raise ValueError(f"Invalid architecture '{args.arch}'. Choose either 'own' or 'copy_author'.")
+            classifier = model.get_model_copy_author(256, normal_channel=False)
+        elif config['architecture'] == "tanh":
+            classifier = model.get_model_tanh(256, normal_channel=False)
     else:
         classifier = model.get_model(256, normal_channel=False)
     criterion = model.get_loss_mse()
