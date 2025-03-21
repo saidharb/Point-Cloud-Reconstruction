@@ -117,15 +117,14 @@ def main(args):
         model_name = 'pointnet2_cls_msg'
     model = importlib.import_module(model_name)
 
-    if 'architecture' in config:
-        if config['architecture'] == 'own':
-            classifier = model.get_model(256, normal_channel=False)
-        elif config['architecture'] == "copy_author":
-            classifier = model.get_model_copy_author(256, normal_channel=False)
-        elif config['architecture'] == "tanh":
-            classifier = model.get_model_tanh(256, normal_channel=False)
-    else:
+    if args.arch == 'own':
         classifier = model.get_model(256, normal_channel=False)
+    elif args.arch == "copy_author":
+        classifier = model.get_model_copy_author(256, normal_channel=False)
+    elif args.arch == "tanh":
+        classifier = model.get_model_tanh(256, normal_channel=False)
+    else: 
+        raise ValueError(f"Invalid architecture '{args.arch}'. Choose either 'own' or 'copy_author'.")
     
     criterion = model.get_loss_mse()
     classifier.apply(inplace_relu)
@@ -383,5 +382,6 @@ if __name__ == '__main__':
 # Envirnonment req.txt for DeepCAD conda
 # wandb for testing
 # gpu arg in parser
+# architecture arg 
 
 
