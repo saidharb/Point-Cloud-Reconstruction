@@ -1,3 +1,12 @@
+import os
+
+
+import numpy as np
+
+from code.dataset import PointCloudEmbeddingSequenceDataset
+import open3d as o3d
+
+
 train = PointCloudEmbeddingSequenceDataset("../data", "train")
 val = PointCloudEmbeddingSequenceDataset("../data", "validation")
 test = PointCloudEmbeddingSequenceDataset("../data", "test")
