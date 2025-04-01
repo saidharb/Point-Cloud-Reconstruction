@@ -16,9 +16,10 @@ from models.DeepCAD.cadlib.macro import EOS_VEC, MAX_TOTAL_LEN
 N_POINTS = 2048
 
 class BaseDataset(Dataset, ABC):
-    def __init__(self, root, split, verbose=False):
+    def __init__(self, root, split, use_normals=False, verbose=False):
         self.root = root
         self.split = split
+        self.use_normals = use_normals
         self.verbose = verbose
         assert split in {'train', 'validation', 'test'}, f"Invalid split '{split}'. Valid options are: 'train', 'validation', 'test'"
         if self.verbose:
@@ -126,26 +127,39 @@ class BaseDataset(Dataset, ABC):
 
 class PointCloudEmbeddingDataset(BaseDataset):
     
-    def __init__(self, root, split, verbose=False):
-        super().__init__(root, split, verbose=verbose)
+    def __init__(self, root, split, use_normals=False, verbose=False):
+        super().__init__(root, split, use_normals=use_normals, verbose=verbose)
         
     def __getitem__(self, idx):
         point_cloud = o3d.io.read_point_cloud(self.pc[idx])
-        point_cloud = torch.tensor(np.asarray(point_cloud.points), dtype = torch.float32) # [B, N, C]
+        if self.use_normals: 
+            point_cloud.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=30))
+            point_cloud.orient_normals_consistent_tangent_plane(100)
+            normals = np.asarray(point_cloud.normals)
+            point_cloud = torch.tensor(np.hstack((point_cloud.points, normals)), dtype = torch.float32) # [N, C + 3]
+        else:
+            point_cloud = torch.tensor(np.asarray(point_cloud.points), dtype = torch.float32) # [N, C]
         sample_idx = random.sample(list(range(point_cloud.shape[0])), N_POINTS)
         point_cloud = point_cloud[sample_idx]
-        latent_rep = torch.tensor(self.latent[idx], dtype = torch.float32) # [B, D]
+        latent_rep = torch.tensor(self.latent[idx], dtype = torch.float32) # [256]
         return point_cloud, latent_rep
 
 
 class PointCloudEmbeddingSequenceDataset(BaseDataset):
     
-    def __init__(self, root, split, verbose=False):
-        super().__init__(root, split, verbose=verbose)
+    def __init__(self, root, split, use_normals=False, verbose=False):
+        super().__init__(root, split, use_normals=use_normals, verbose=verbose)
         
     def __getitem__(self, idx):
         point_cloud = o3d.io.read_point_cloud(self.pc[idx])
-        point_cloud = torch.tensor(np.asarray(point_cloud.points), dtype = torch.float32) # [B, N, C]
+        if self.use_normals: 
+            point_cloud.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=30))
+            point_cloud.orient_normals_consistent_tangent_plane(100)
+            normals = np.asarray(point_cloud.normals)
+            point_cloud = torch.tensor(np.hstack((point_cloud.points, normals)), dtype = torch.float32) # [N, C + 3]
+        else:
+            point_cloud = torch.tensor(np.asarray(point_cloud.points), dtype = torch.float32) # [N, C]
+        point_cloud = torch.tensor(np.hstack((point_cloud.points, point_cloud.normals)), dtype = torch.float32) # [B, N, C]
         sample_idx = random.sample(list(range(point_cloud.shape[0])), N_POINTS)
         point_cloud = point_cloud[sample_idx]
         latent_rep = torch.tensor(self.latent[idx], dtype = torch.float32) # [B, D]

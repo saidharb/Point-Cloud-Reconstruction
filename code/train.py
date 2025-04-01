@@ -53,6 +53,8 @@ def parse_args():
                         help="Use multiple GPU's for training.")
     parser.add_argument('--arch', type=str, choices=['own', 'copy_author', 'tanh'], default='own', 
                         help="Which architecture configuration to use.")
+    parser.add_argument('--normals', action='store_true', default=False, 
+                        help="Estimate normals for point clouds.")
     return parser.parse_args()
 
 def inplace_relu(m):
@@ -118,11 +120,11 @@ def main(args):
     model = importlib.import_module(model_name)
 
     if args.arch == 'own':
-        classifier = model.get_model(256, normal_channel=False)
+        classifier = model.get_model(256, normal_channel=args.normals)
     elif args.arch == "copy_author":
-        classifier = model.get_model_copy_author(256, normal_channel=False)
+        classifier = model.get_model_copy_author(256, normal_channel=args.normals)
     elif args.arch == "tanh":
-        classifier = model.get_model_tanh(256, normal_channel=False)
+        classifier = model.get_model_tanh(256, normal_channel=args.normals)
     else: 
         raise ValueError(f"Invalid architecture '{args.arch}'. Choose either 'own' or 'copy_author'.")
     
@@ -168,7 +170,8 @@ def main(args):
         'msg': args.msg,
         'augmentation': args.aug,
         'gpu': args.gpu,
-        'architecture': args.arch
+        'architecture': args.arch,
+        'normals': args.normals
     }
 
     if continue_training:
@@ -206,9 +209,9 @@ def main(args):
 
     # Load data
     num_workers = 0 if device.type == 'cpu' else 8
-    train_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'train')
+    train_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'train', use_normals=args.normals)
     train_dataloader = DataLoader(train_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = True)
-    val_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'validation')
+    val_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'validation', use_normals=args.normals)
     val_dataloader = DataLoader(val_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = False)
     monitor.log(f"Train set: {len(train_dataloader)}, Validation set: {len(val_dataloader)}")
 
