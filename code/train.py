@@ -5,6 +5,7 @@ import importlib
 from datetime import datetime
 import time
 import csv
+import multiprocessing
 
 import torch
 from torch.utils.data import DataLoader
@@ -209,10 +210,11 @@ def main(args):
 
     # Load data
     num_workers = 0 if device.type == 'cpu' else 8
+    print("Num. workers: ", num_workers)
     train_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'train', use_normals=args.normals)
-    train_dataloader = DataLoader(train_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = True)
+    train_dataloader = DataLoader(train_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = True, multiprocessing_context=multiprocessing.get_context("spawn"))
     val_dataset = PointCloudEmbeddingDataset(DATA_DIR, 'validation', use_normals=args.normals)
-    val_dataloader = DataLoader(val_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = False)
+    val_dataloader = DataLoader(val_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = False, multiprocessing_context=multiprocessing.get_context("spawn"))
     monitor.log(f"Train set: {len(train_dataloader)}, Validation set: {len(val_dataloader)}")
 
     ## Optimizer

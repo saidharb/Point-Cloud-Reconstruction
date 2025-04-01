@@ -159,7 +159,6 @@ class PointCloudEmbeddingSequenceDataset(BaseDataset):
             point_cloud = torch.tensor(np.hstack((point_cloud.points, normals)), dtype = torch.float32) # [N, C + 3]
         else:
             point_cloud = torch.tensor(np.asarray(point_cloud.points), dtype = torch.float32) # [N, C]
-        point_cloud = torch.tensor(np.hstack((point_cloud.points, point_cloud.normals)), dtype = torch.float32) # [B, N, C]
         sample_idx = random.sample(list(range(point_cloud.shape[0])), N_POINTS)
         point_cloud = point_cloud[sample_idx]
         latent_rep = torch.tensor(self.latent[idx], dtype = torch.float32) # [B, D]
