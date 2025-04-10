@@ -26,7 +26,10 @@ class BaseDataset(Dataset, ABC):
             print(f"Loading {self.split} dataset \n", flush=True)
 
         self.split_path = os.path.join(root, "train_val_test_split.json")
-        self.pc_path = os.path.join(root, "pc_cad")
+        if self.use_normals:
+            self.pc_path = os.path.join(root, "pc_cad_norm")
+        else:
+            self.pc_path = os.path.join(root, "pc_cad")
         self.latent_path = os.path.join(root, "latent/pretrained/results/all_zs_ckpt1000.h5")
         self.cad_seq_path = os.path.join(root, "cad_vec")
 
@@ -38,8 +41,13 @@ class BaseDataset(Dataset, ABC):
         # assert(self.check_valid_pc(self.pc))
 
         # CAD-sequences
-        self.cad_seq = [os.path.splitext(f)[0] + '.h5' for f in self.pc]
-        self.cad_seq = [f.replace('pc_cad', 'cad_vec') for f in self.cad_seq]
+        if not self.use_normals:
+            self.cad_seq = [os.path.splitext(f)[0] + '.h5' for f in self.pc]
+            self.cad_seq = [f.replace('pc_cad', 'cad_vec') for f in self.cad_seq]
+        else:
+            self.cad_seq = [os.path.splitext(f)[0] + '.h5' for f in self.pc]
+            self.cad_seq = [f.replace('pc_cad_norm', 'cad_vec') for f in self.cad_seq]
+
 
         # Latent Representations
         with h5py.File(self.latent_path, 'r') as f:
@@ -133,8 +141,6 @@ class PointCloudEmbeddingDataset(BaseDataset):
     def __getitem__(self, idx):
         point_cloud = o3d.io.read_point_cloud(self.pc[idx])
         if self.use_normals: 
-            point_cloud.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=30))
-            point_cloud.orient_normals_consistent_tangent_plane(100)
             normals = np.asarray(point_cloud.normals)
             point_cloud = torch.tensor(np.hstack((point_cloud.points, normals)), dtype = torch.float32) # [N, C + 3]
         else:
@@ -153,8 +159,6 @@ class PointCloudEmbeddingSequenceDataset(BaseDataset):
     def __getitem__(self, idx):
         point_cloud = o3d.io.read_point_cloud(self.pc[idx])
         if self.use_normals: 
-            point_cloud.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=30))
-            point_cloud.orient_normals_consistent_tangent_plane(100)
             normals = np.asarray(point_cloud.normals)
             point_cloud = torch.tensor(np.hstack((point_cloud.points, normals)), dtype = torch.float32) # [N, C + 3]
         else:
