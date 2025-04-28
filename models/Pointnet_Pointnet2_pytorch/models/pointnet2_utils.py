@@ -61,6 +61,9 @@ def index_points(points, idx):
 
 
 def farthest_point_sample(xyz, npoint):
+  #  seed = 42
+  #  torch.manual_seed(seed)
+  #  np.random.seed(seed)
     """
     Input:
         xyz: pointcloud data, [B, N, 3]
@@ -73,6 +76,7 @@ def farthest_point_sample(xyz, npoint):
     centroids = torch.zeros(B, npoint, dtype=torch.long).to(device)
     distance = torch.ones(B, N).to(device) * 1e10
     farthest = torch.randint(0, N, (B,), dtype=torch.long).to(device)
+  #  print(farthest)
     batch_indices = torch.arange(B, dtype=torch.long).to(device)
     for i in range(npoint):
         centroids[:, i] = farthest
