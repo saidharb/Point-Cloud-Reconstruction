@@ -242,13 +242,10 @@ def adjust_pointcloud_to_fixed_size(points, labels, target_n=10000):
 
     return points[idx], labels[idx]
 
-
-    return points[idx], labels[idx]
-
 def main(args):
     # Data creation settings
 
-    DATA_DIR = "../notebooks/data_exp"
+    DATA_DIR = "../data"
     nr_points_gt = 40000
     nr_points_ext = 40000
     epsilon = 0.005
@@ -281,7 +278,7 @@ def main(args):
                                 end = i
                                 break
                         f.create_dataset("sequence", data=sequence[:end], compression='gzip')
-                    update_dict[str(i)] = "Updated sequence"
+                    update_dict[str(i)] = f"Updated sequence for {h5_path} with id {id}."
         
                 print(f"\rProcessing {i + 1}/{length} | ID: {id}", end="")
                 sys.stdout.flush()
@@ -297,7 +294,6 @@ def main(args):
         
                 save_pc(pc, pc_path)
                 save_labels_with_ext(labels, extrusions, h5_path)
-                break
 
             except Exception as e:
                 error_dict[str(i)] = e
@@ -306,6 +302,8 @@ def main(args):
     # Save
     with open("error_dict.pkl", "wb") as f:
         pickle.dump(error_dict, f)
+    with open("update_dict.pkl", "wb") as f:
+        pickle.dump(update_dict, f)
 
 
 
