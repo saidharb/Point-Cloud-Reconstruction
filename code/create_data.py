@@ -273,11 +273,11 @@ def main(args):
                 if flag: # If sequence contains errors, update it in the orignal targets/h5 file
                     h5_path = dataset.get_cad_seq_path(i)
                     with h5py.File(h5_path, 'w') as f:
-                        for i, command in enumerate(sequence):
+                        for k, command in enumerate(sequence):
                             if command[0] == 3:
-                                end = i
+                                end = k
                                 break
-                        f.create_dataset("sequence", data=sequence[:end], compression='gzip')
+                        f.create_dataset("vec", data=sequence[:end + 1], compression='gzip')
                     update_dict[str(i)] = f"Updated sequence for {h5_path} with id {id}."
         
                 print(f"\rProcessing {i + 1}/{length} | ID: {id}", end="")
