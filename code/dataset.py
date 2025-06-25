@@ -166,7 +166,7 @@ class PointCloudEmbeddingSequenceDataset(BaseDataset):
         else:
             point_cloud = torch.tensor(np.asarray(point_cloud.points), dtype = torch.float32) # [N, C]
         sample_idx = random.sample(list(range(point_cloud.shape[0])), N_POINTS)
-        point_cloud = point_cloud[sample_idx] # IGNORE_INDICES
+        # point_cloud = point_cloud[sample_idx] # IGNORE_INDICES
         latent_rep = torch.tensor(self.latent[idx], dtype = torch.float32) # [B, D]
         
         with h5py.File(self.cad_seq[idx], 'r') as fp:
@@ -182,3 +182,38 @@ class PointCloudEmbeddingSequenceDataset(BaseDataset):
                 "id":  id
             }
         return data
+
+class PCExtrusionSegmentationDataset(BaseDataset):
+    
+    def __init__(self, root, split, use_normals=False, verbose=False):
+        super().__init__(root, split, use_normals=use_normals, verbose=verbose)
+        self.pc_path = os.path.join(root, "pc_from_vec")
+
+        pc_all = self.read_split() # Files in official split
+        pc_file_pattern = os.path.join("**", "*") + ".ply"
+        self.all_pc_files = set(glob(f"{os.path.join(self.pc_path, pc_file_pattern)}", recursive=True)) # Files on disk
+        self.pc, self.corrupt_idx = self.filter_pc(pc_all)
+
+        self.label_files = [os.path.splitext(f)[0] + '.h5' for f in self.pc]
+        self.all_label_files = [f.replace("pc_from_vec", "pc_from_vec_labels") for f in self.label_files]
+
+    def __getitem__(self, idx):
+        point_cloud = o3d.io.read_point_cloud(self.pc[idx])
+        point_cloud = torch.tensor(np.asarray(point_cloud.points), dtype = torch.float32) # [N, C]
+        sample_idx = random.sample(list(range(point_cloud.shape[0])), N_POINTS)
+        # point_cloud = point_cloud[sample_idx] # IGNORE_INDICES
+        
+        with h5py.File(self.all_label_files[idx], 'r') as fp:
+            labels = fp["labels"][:]
+        labels = torch.tensor(labels, dtype=torch.long)
+        # labels = labels[sample_idx]
+
+        id = self.get_id(idx)
+        data = {"pc": point_cloud,
+                "label": labels,
+                "id":  id
+            }
+        return data
+    
+    def __len__(self):
+        return len(self.pc)
