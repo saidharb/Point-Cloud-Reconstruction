@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 import torch.nn as nn 
 import wandb
 
-from dataset import PointCloudEmbeddingDataset
+from dataset import PCExtrusionSegmentationDataset
 from models.Pointnet_Pointnet2_pytorch import provider
 from metrics import RegressionRunningScore
 from utils import SaveBestModel, EarlyStopping, Logger, LearningRateStepScheduler
@@ -31,6 +31,19 @@ def parse_args():
     parser.add_argument('--batch_size', type=int, default=24, help='batch size')
     parser.add_argument('--gpu', action='store_true', default=False, 
                         help="Use multiple GPU's for training.")
+    parser.add_argument('--learning_rate', type=float, default=0.001, help="initial learning rate")
+    parser.add_argument('--max_epochs', type=int, default=50, help='maximum number of epochs')
+    parser.add_argument('--early_stopping', 
+                        type=int, 
+                        default=20, 
+                        help="abort training after this amount of epochs with no validation loss decrease")
+    parser.add_argument('--save_interval', type=int, default=20, help='save interval for models')
+    parser.add_argument('--lr_type', type=str, choices=['step', 'cosine', 'step_adv'], default='step', 
+                        help="Learning rate type: step for a simple step learning rate scheduler, "
+                        "step_adv for reducing learning rate on val_loss plateau or cosine for cosine "
+                        "annealing with warm restarts")
+    parser.add_argument('--wandb', action='store_true', default=False, help='enable WandB tracking')
+    parser.add_argument('--lr_patience', type=int, default=15, help="patience in epochs for learning rate decay")
     return parser.parse_args()
 
 def inplace_relu(m):
@@ -121,6 +134,93 @@ def main(args):
     classifier = classifier.to(device)
     criterion = criterion.to(device)
     print("--- DONE ---\n", flush=True)
+
+    config = {
+        'learning_rate': args.learning_rate,
+        'batch_size': batch_size,
+        'max_epochs': args.max_epochs,
+        'optimizer': 'Adam',
+        'model_type': model_name,
+        'save_interval': args.save_interval,
+        'early_stopping': args.early_stopping,
+        'start_time': date_and_time,
+        'lr_type': args.lr_type,
+        'gpu': args.gpu,
+    }
+    if continue_training:
+        model_path = os.path.join(save_dir, 'last.pth')
+        saved_model = torch.load(model_path, map_location=torch.device(device), weights_only=True)
+        config = saved_model['config']
+
+    if args.wandb:
+        assert 1==2, "Needs to be adapted to new model"
+        print("### WANDB ###\n", flush=True)
+        if os.getenv("WANDB_API_KEY"):
+            print("Logging into WandB...\n", flush=True)
+            wandb.login(key=os.getenv("WANDB_API_KEY"))
+
+            run_id_file = os.path.join(save_dir, "wandb_run_id.txt")
+            if os.path.exists(run_id_file):
+                with open(run_id_file, "r") as f:
+                    run_id = f.read().strip()
+                print(f"Resuming WandB run with ID: {run_id}\n", flush=True)
+                wandb.init(project='Master Thesis',
+                        id=run_id,
+                        resume="allow",
+                        config=config)
+            else:
+                run = wandb.init(project='Master Thesis',
+                                name=args.name,
+                                config=config)
+                run_id = run.id
+                with open(run_id_file, "w") as f:
+                    f.write(run_id)
+                print(f"New WandB run started with ID: {run_id}\n", flush=True)
+            table = wandb.Table(columns=["train_mse", "train_rmse", "train_mae", "val_mse", "val_rmse", "val_mae"])
+        else:
+            print("No WandB API key provided, WandB is disabled.\n", flush=True)
+
+    # Load data
+    num_workers = 0 if device.type == 'cpu' else 8
+    print("Num. workers: ", num_workers)
+    train_dataset = PCExtrusionSegmentationDataset(DATA_DIR, 'train', use_normals=False, verbose=True)
+    train_dataloader = DataLoader(train_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = True) # multiprocessing_context=multiprocessing.get_context("spawn")
+    val_dataset = PCExtrusionSegmentationDataset(DATA_DIR, 'validation', use_normals=False, verbose=True)
+    val_dataloader = DataLoader(val_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = False) # multiprocessing_context=multiprocessing.get_context("spawn")
+    monitor.log(f"Train set: {len(train_dataloader)}, Validation set: {len(val_dataloader)}")
+
+    ## Optimizer
+    optimizer = torch.optim.Adam(
+        classifier.parameters(),
+        lr=args.learning_rate,
+        betas=(0.9, 0.999),
+        eps=1e-08,
+        weight_decay=1e-4
+        )
+    
+    if args.lr_type == 'step_adv':
+        scheduler = LearningRateStepScheduler(optimizer, 
+                                              0.1, 
+                                              args.lr_patience, 
+                                              monitor, 
+                                              save_dir, 
+                                              cont=continue_training)
+    elif args.lr_type == 'cosine':
+        scheduler = CosineAnnealWarmRestart(optimizer, 
+                                            monitor, 
+                                            save_dir, 
+                                            T_0=20, 
+                                            T_mult=1.5, 
+                                            factor = 0.8, 
+                                            min_lr=1e-7, 
+                                            cont=continue_training)
+    elif args.lr_type == 'step':
+        scheduler = StepLR(optimizer,
+                           monitor,
+                           save_dir,
+                           args.lr_patience,
+                           0.1,
+                           cont=continue_training)
 
 
 if __name__ == '__main__':
