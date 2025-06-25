@@ -92,11 +92,11 @@ def main(args):
 
         # Load model
     sys.path.append(os.path.join(root_dir, 'models','Pointnet_Pointnet2_pytorch', 'models'))
-    model_name = 'pointnet2_part_seg_msg'
+    model_name = 'pointnet2_sem_seg_msg'
     model = importlib.import_module(model_name)
 
     num_classes = 10 # max number of extrusions in dataset
-    classifier = model.get_model(num_classes, normal_channel=False)
+    classifier = model.get_model(num_classes)
     criterion = model.get_loss()
     classifier.apply(inplace_relu)
 
@@ -109,6 +109,7 @@ def main(args):
             torch.nn.init.xavier_normal_(m.weight.data)
             torch.nn.init.constant_(m.bias.data, 0.0)
 
+    first_epoch = 0
     if continue_training:
         monitor.log_and_print(f"### Load pretrained {model_name} model ###\n")
         model_path = os.path.join(save_dir, 'last.pth')
@@ -153,7 +154,7 @@ def main(args):
         config = saved_model['config']
 
     if args.wandb:
-        assert 1==2, "Needs to be adapted to new model"
+        # TODO Needs to be adapted to new model
         print("### WANDB ###\n", flush=True)
         if os.getenv("WANDB_API_KEY"):
             print("Logging into WandB...\n", flush=True)
@@ -221,7 +222,31 @@ def main(args):
                            args.lr_patience,
                            0.1,
                            cont=continue_training)
+        
+    # TODO SCORES
 
+    best_model_tracker = SaveBestModel(config, save_dir, monitor, cont = continue_training)
+    early_stopping = EarlyStopping(config, monitor, save_dir, cont = continue_training)
+
+    # Training
+    monitor.log_and_print("### Training starts ###\n")
+    for epoch in range(first_epoch, args.max_epochs):
+        classifier.train()
+        print(f"Epoch {epoch + 1}/{args.max_epochs}", flush=True)
+        epoch_start_time = time.time()
+
+        for i, data in enumerate(train_dataloader):
+            pc = data['pc']
+            label = data['label']
+            
+            optimizer.zero_grad()
+            pc = pc.transpose(2, 1) # [B, C, N]
+            pc, label = pc.to(device), label.to(device)
+            print(pc.shape, label.shape, flush=True)
+            seg_pred, trans_feat = classifier(pc)
+            print(seg_pred.shape, trans_feat.shape, flush=True)
+            break
+        break
 
 if __name__ == '__main__':
     args = parse_args()
