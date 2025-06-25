@@ -126,7 +126,7 @@ def CADsolid2pc(shape, n_points, name=None):
 
     if name is None:
         name = random.randint(100000, 999999)
-    write_stl_file(shape, "tmp_out_{}.stl".format(name))
+    write_stl_file(shape, "tmp_out_{}.stl".format(name), linear_deflection=0.05, angular_deflection=0.05)
     out_mesh = trimesh.load("tmp_out_{}.stl".format(name))
     os.system("rm tmp_out_{}.stl".format(name))
     out_pc, _ = sample_surface(out_mesh, n_points)
