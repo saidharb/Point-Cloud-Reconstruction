@@ -21,6 +21,7 @@ __pycache__/
 
 # Models
 **/*.pth
+**/*.pkl
 
 # Log files
 **/*.log
@@ -43,6 +44,7 @@ src/
 
 # CAD files
 **/*.step
+**/*.stl
 
 # h5 files
 **/*.h5
@@ -55,6 +57,8 @@ notebooks/experiments/
 
 # Point Cloud files
 **/*.pcd
+**/*.ply
 
 # Figures
 figures
+**/*.png
