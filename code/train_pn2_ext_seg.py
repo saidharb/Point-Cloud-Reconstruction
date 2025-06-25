@@ -11,6 +11,7 @@ import torch
 from torch.utils.data import DataLoader
 import torch.nn as nn 
 import wandb
+import numpy as np
 
 from dataset import PCExtrusionSegmentationDataset
 from models.Pointnet_Pointnet2_pytorch import provider
@@ -96,6 +97,7 @@ def main(args):
     model = importlib.import_module(model_name)
 
     num_classes = 10 # max number of extrusions in dataset
+    num_points = 10000
     classifier = model.get_model(num_classes)
     criterion = model.get_loss()
     classifier.apply(inplace_relu)
@@ -234,6 +236,10 @@ def main(args):
         classifier.train()
         print(f"Epoch {epoch + 1}/{args.max_epochs}", flush=True)
         epoch_start_time = time.time()
+        num_batches = len(train_dataloader)
+        total_correct = 0
+        total_seen = 0
+        loss_sum = 0
 
         for i, data in enumerate(train_dataloader):
             pc = data['pc']
@@ -242,10 +248,28 @@ def main(args):
             optimizer.zero_grad()
             pc = pc.transpose(2, 1) # [B, C, N]
             pc, label = pc.to(device), label.to(device)
-            print(pc.shape, label.shape, flush=True)
             seg_pred, trans_feat = classifier(pc)
-            print(seg_pred.shape, trans_feat.shape, flush=True)
-            break
+
+            seg_pred = seg_pred.contiguous().view(-1, num_classes)
+            label = label.view(-1, 1).squeeze()
+            batch_label = label.view(-1, 1).squeeze().cpu().data.numpy()
+
+            loss = criterion(seg_pred, label, trans_feat, weight=None)
+            print(loss.item(), flush=True)
+            loss.backward()
+            optimizer.step()
+            
+            pred_choice = seg_pred.cpu().data.max(1)[1].numpy()
+
+            correct = np.sum(pred_choice == batch_label)
+            total_correct += correct
+            total_seen += (args.batch_size * num_points)
+            loss_sum += loss
+            if i == 100:
+                break
+        
+        
+        
         break
 
 if __name__ == '__main__':
