@@ -164,6 +164,7 @@ def main(args):
         monitor.log_and_print(f'\nLoaded state dict from {model_path}.')
     else:
         monitor.log_and_print(f"### Load new {model_name} model ###\n")
+        classifier.apply(weights_init)
 
     ## Cuda
     monitor.log_and_print(f"Using device: {device}\n")
