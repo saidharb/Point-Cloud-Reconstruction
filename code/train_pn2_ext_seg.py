@@ -15,7 +15,7 @@ import numpy as np
 
 from dataset import PCExtrusionSegmentationDataset
 from models.Pointnet_Pointnet2_pytorch import provider
-from metrics import RegressionRunningScore
+from metrics import ClassificationRunningScore
 from utils import SaveBestModel, EarlyStopping, Logger, LearningRateStepScheduler
 from LRSchedulers import CosineAnnealWarmRestart, StepLR
 
@@ -45,6 +45,7 @@ def parse_args():
                         "annealing with warm restarts")
     parser.add_argument('--wandb', action='store_true', default=False, help='enable WandB tracking')
     parser.add_argument('--lr_patience', type=int, default=15, help="patience in epochs for learning rate decay")
+    parser.add_argument('--verbose', action='store_true', default=False, help='output per batch metrics')
     return parser.parse_args()
 
 def inplace_relu(m):
@@ -225,7 +226,8 @@ def main(args):
                            0.1,
                            cont=continue_training)
         
-    # TODO SCORES
+    scores_train = ClassificationRunningScore(num_classes)
+    scores_val = ClassificationRunningScore(num_classes)
 
     best_model_tracker = SaveBestModel(config, save_dir, monitor, cont = continue_training)
     early_stopping = EarlyStopping(config, monitor, save_dir, cont = continue_training)
@@ -236,10 +238,7 @@ def main(args):
         classifier.train()
         print(f"Epoch {epoch + 1}/{args.max_epochs}", flush=True)
         epoch_start_time = time.time()
-        num_batches = len(train_dataloader)
-        total_correct = 0
-        total_seen = 0
-        loss_sum = 0
+        loss_train_sum = 0
 
         for i, data in enumerate(train_dataloader):
             pc = data['pc']
@@ -252,24 +251,25 @@ def main(args):
 
             seg_pred = seg_pred.contiguous().view(-1, num_classes)
             label = label.view(-1, 1).squeeze()
-            batch_label = label.view(-1, 1).squeeze().cpu().data.numpy()
 
-            loss = criterion(seg_pred, label, trans_feat, weight=None)
-            print(loss.item(), flush=True)
-            loss.backward()
+            loss_train = criterion(seg_pred, label, trans_feat, weight=None)
+
+            loss_train.backward()
             optimizer.step()
-            
-            pred_choice = seg_pred.cpu().data.max(1)[1].numpy()
 
-            correct = np.sum(pred_choice == batch_label)
-            total_correct += correct
-            total_seen += (args.batch_size * num_points)
-            loss_sum += loss
-            if i == 100:
+            scores_train.update(seg_pred, label)
+
+            loss_train_sum += loss_train
+
+            if args.verbose:
+                print(f"Batch {i}/{len(train_dataloader) - 1}: "
+                      f"Loss/Sum: {loss_train.item():<.4f}/{loss_train_sum.item():<.4f} | "
+                      f"mAcc.: {scores_train.get_mean_class_accuracy():<.4f} | "
+                      f"mIoU: {scores_train.get_mIoU():<.4f} ")
+
+
+            if i == 20:
                 break
-        
-        
-        
         break
 
 if __name__ == '__main__':

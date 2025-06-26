@@ -74,10 +74,8 @@ class ClassificationRunningScore():
         self.fn = np.zeros(num_classes, dtype=np.int64)
 
     def update(self, pred, label):
-      #  pred_choice = pred.cpu().data.max(1)[1].numpy()
-       # batch_label = label.view(-1, 1).squeeze().cpu().data.numpy()
-        pred_choice = pred.data.numpy()
-        batch_label = label.data.numpy()
+        pred_choice = pred.cpu().data.max(1)[1].numpy()
+        batch_label = label.view(-1, 1).squeeze().cpu().data.numpy()
         for c in range(self.num_classes):
             self.tp[c] += np.sum((pred_choice == c) & (batch_label == c))
             self.fp[c] += np.sum((pred_choice == c) & (batch_label != c))
@@ -92,19 +90,19 @@ class ClassificationRunningScore():
     
     def get_mIoU(self):
         iou = self.tp / (self.tp + self.fp + self.fn + 1e-8)
-        return np.mean(iou), iou
+        return np.mean(iou)
     
-    def get_accuracy(self): # TODO IS THIS CORRECT?
+    def get_accuracy(self): 
         total_correct = np.sum(self.tp)
         total_points = np.sum(self.tp + self.fn)
         return total_correct / (total_points + 1e-8)
 
-    def get_class_accuracy(self): # TODO DOES THIS MAKE SENSE?
+    def get_class_accuracy(self): 
         """Per-class accuracy: TP / (TP + FN)"""
         acc = self.tp / (self.tp + self.fn + 1e-8)
         return acc 
 
-    def get_mean_class_accuracy(self): # TODO DOES THIS MAKE SENSE?
+    def get_mean_class_accuracy(self): 
         """Mean of per-class accuracies"""
         acc = self.get_class_accuracy()
         return np.mean(acc)
