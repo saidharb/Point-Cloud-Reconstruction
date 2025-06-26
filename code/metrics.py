@@ -175,6 +175,18 @@ class ClassificationRunningScore():
         self.fp.fill(0)
         self.fn.fill(0)
 
+    def get_epoch_miou(self, epoch):
+        return self.miou_epoch_list[epoch]
+    
+    def get_epoch_acc(self, epoch):
+        return self.acc_epoch_list[epoch]
+    
+    def get_epoch_mean_acc(self, epoch):
+        return self.mean_acc_epoch_list[epoch]
+    
+    def get_epoch_loss(self, epoch):
+        return self.loss_epoch_list[epoch]
+
 
 
         

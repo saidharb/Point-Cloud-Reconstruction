@@ -44,6 +44,7 @@ def parse_args():
                         "step_adv for reducing learning rate on val_loss plateau or cosine for cosine "
                         "annealing with warm restarts")
     parser.add_argument('--wandb', action='store_true', default=False, help='enable WandB tracking')
+    parser.add_argument('--name', type=str, default="test_run", help="name of WandB run")
     parser.add_argument('--lr_patience', type=int, default=15, help="patience in epochs for learning rate decay")
     parser.add_argument('--verbose', action='store_true', default=False, help='output per batch metrics')
     return parser.parse_args()
@@ -195,7 +196,6 @@ def main(args):
         config = saved_model['config']
 
     if args.wandb:
-        # TODO Needs to be adapted to new model
         print("### WANDB ###\n", flush=True)
         if os.getenv("WANDB_API_KEY"):
             print("Logging into WandB...\n", flush=True)
@@ -218,7 +218,6 @@ def main(args):
                 with open(run_id_file, "w") as f:
                     f.write(run_id)
                 print(f"New WandB run started with ID: {run_id}\n", flush=True)
-            table = wandb.Table(columns=["train_mse", "train_rmse", "train_mae", "val_mse", "val_rmse", "val_mae"])
         else:
             print("No WandB API key provided, WandB is disabled.\n", flush=True)
 
@@ -357,16 +356,18 @@ def main(args):
         current_lr = scheduler.get_current_learning_rate()
         scheduler.update(loss_val_sum.item() / len(val_dataloader))
 
-        if args.wandb: # REFACTOR
+        if args.wandb:
             if os.getenv("WANDB_API_KEY"):
                 wandb.log({'epochs': epoch, 
                         'learning_rate': current_lr,
-                        'train_loss': scores_train.get_epoch_mse(epoch),
-                        'train_rmse': scores_train.get_epoch_rmse(epoch),
-                        'train_mae': scores_train.get_epoch_mae(epoch),
-                        'val_loss': scores_val.get_epoch_mse(epoch),
-                        'val_rmse': scores_val.get_epoch_rmse(epoch),
-                        'val_mae': scores_val.get_epoch_mae(epoch),
+                        'train_loss': scores_train.get_epoch_loss(epoch),
+                        'train_miou': scores_train.get_epoch_miou(epoch),
+                        'train_acc': scores_train.get_epoch_acc(epoch),
+                        'train_mean_acc': scores_train.get_epoch_mean_acc(epoch),
+                        'val_loss': scores_val.get_epoch_loss(epoch),
+                        'val_miou': scores_val.get_epoch_miou(epoch),
+                        'val_acc': scores_val.get_epoch_acc(epoch),
+                        'val_mean_acc': scores_val.get_epoch_mean_acc(epoch),
                         'time': epoch_duration})
         
         best_model_tracker.update(loss_val_sum.item() / len(val_dataloader), epoch, classifier)
@@ -378,11 +379,6 @@ def main(args):
                 epoch = epoch)
         
         if early_stopping.update(loss_val_sum.item() / len(val_dataloader)):
-            if args.wandb:
-                try: # REFACTOR
-                    table.add_data(*scores_train.get_best_model_metrics(), *scores_val.get_best_model_metrics())
-                except Exception as e:
-                    monitor.log_and_print(e)
             break
 
         print("", flush=True)
