@@ -67,11 +67,55 @@ class RegressionRunningScore():
         return self.mse[best_epoch], self.rmse[best_epoch], self.mae[best_epoch]
     
 class ClassificationRunningScore():
-    def __init__(self, num_classes=10):
+    def __init__(self, num_classes, save_dir, cont, phase):
         self.num_classes = num_classes
+
+        # per class metrics
+        self.tp_epoch_list = []
+        self.fp_epoch_list = []
+        self.fn_epoch_list = []
+        self.class_iou_epoch_list = []
+        self.class_acc_epoch_list = []
+
+        # mean metrics
+        self.miou_epoch_list = []
+        self.acc_epoch_list = []
+        self.mean_acc_epoch_list = []
+
+        # Loss
+        self.loss_epoch_list = []
+
+
+
         self.tp = np.zeros(num_classes, dtype=np.int64)
         self.fp = np.zeros(num_classes, dtype=np.int64)
         self.fn = np.zeros(num_classes, dtype=np.int64)
+
+        if cont: 
+            df = pd.read_csv(os.path.join(save_dir, 'mean_metrics.csv'))
+            data_dict = df.to_dict(orient = 'list')
+            if phase == 'train':
+                data = np.load(os.path.join(save_dir, 'train_metrics.npz'))
+                self.tp_epoch_list = list(data["tp"])
+                self.fp_epoch_list = list(data["fp"])
+                self.fn_epoch_list = list(data["fn"]) 
+                self.class_iou_epoch_list = list(data["class_iou"])
+                self.class_acc_epoch_list = list(data["class_acc"])
+                self.miou_epoch_list = data_dict["train_mIoU"]
+                self.acc_epoch_list = data_dict["train_acc"]
+                self.mean_acc_epoch_list = data_dict["train_mean_acc"]
+                self.loss_epoch_list = data_dict["train_loss"]
+            if phase == 'validation':
+                data = np.load(os.path.join(save_dir, 'val_metrics.npz'))
+                self.tp_epoch_list = list(data["tp"])
+                self.fp_epoch_list = list(data["fp"])
+                self.fn_epoch_list = list(data["fn"])
+                self.class_iou_epoch_list = list(data["class_iou"])
+                self.class_acc_epoch_list = list(data["class_acc"])
+                self.miou_epoch_list = data_dict["val_mIoU"]
+                self.acc_epoch_list = data_dict["val_acc"]
+                self.mean_acc_epoch_list = data_dict["val_mean_acc"]
+                self.loss_epoch_list = data_dict["val_loss"]
 
     def update(self, pred, label):
         pred_choice = pred.cpu().data.max(1)[1].numpy()
@@ -80,6 +124,25 @@ class ClassificationRunningScore():
             self.tp[c] += np.sum((pred_choice == c) & (batch_label == c))
             self.fp[c] += np.sum((pred_choice == c) & (batch_label != c))
             self.fn[c] += np.sum((pred_choice != c) & (batch_label == c))
+
+    def epoch_finished(self, loss):
+        self.tp_epoch_list.append(self.tp.copy())
+        self.fp_epoch_list.append(self.fp.copy())
+        self.fn_epoch_list.append(self.fn.copy())   
+        self.loss_epoch_list.append(loss)
+        self.class_iou_epoch_list.append(self.get_class_IoU())
+        self.class_acc_epoch_list.append(self.get_class_accuracy())
+        self.miou_epoch_list.append(self.get_mIoU())
+        self.acc_epoch_list.append(self.get_accuracy())
+        self.mean_acc_epoch_list.append(self.get_mean_class_accuracy())
+
+        self.reset()
+
+    def get_metrics_list(self):
+        return self.tp_epoch_list, self.fp_epoch_list, self.fn_epoch_list, \
+               self.class_iou_epoch_list, self.class_acc_epoch_list, \
+               self.miou_epoch_list, self.acc_epoch_list, self.mean_acc_epoch_list, \
+               self.loss_epoch_list
 
     def get_scores(self):
         return {'tp': self.tp, 'fp': self.fp, 'fn': self.fn}

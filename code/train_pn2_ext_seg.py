@@ -16,7 +16,7 @@ import numpy as np
 from dataset import PCExtrusionSegmentationDataset
 from models.Pointnet_Pointnet2_pytorch import provider
 from metrics import ClassificationRunningScore
-from utils import SaveBestModel, EarlyStopping, Logger, LearningRateStepScheduler
+from utils import EarlyStoppingExtrusionSeg, Logger, LearningRateStepScheduler, SaveBestModelExtrusionSeg
 from LRSchedulers import CosineAnnealWarmRestart, StepLR
 
 def parse_args():
@@ -52,6 +52,44 @@ def inplace_relu(m):
     classname = m.__class__.__name__
     if classname.find('ReLU') != -1:
         m.inplace=True
+
+def save_metrics(*lists, save_path, epoch):
+    lr_history, tp_train, fp_train, fn_train, class_iou_train, class_acc_train, \
+    miou_train, acc_train, mean_acc_train, loss_train, \
+    tp_val, fp_val, fn_val, class_iou_val, class_acc_val, \
+    miou_val, acc_val, mean_acc_val, loss_val = lists
+
+    epoch = list(range(1, epoch + 2))  # +1 for zero-based index, +1 for last epoch
+
+    np.savez(os.path.join(save_path, "train_metrics.npz"),
+             tp = np.array(tp_train),
+             fp = np.array(fp_train),
+             fn = np.array(fn_train),
+             class_iou = np.array(class_iou_train),
+             class_acc = np.array(class_acc_train))
+    
+    np.savez(os.path.join(save_path, "val_metrics.npz"),
+             tp = np.array(tp_val),
+             fp = np.array(fp_val),
+             fn = np.array(fn_val),
+             class_iou = np.array(class_iou_val),
+             class_acc = np.array(class_acc_val))
+    
+    csv_path = os.path.join(save_path, "mean_metrics.csv")
+    with open(csv_path, mode='w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            "epoch", "lr",
+            "train_mIoU", "train_acc", "train_mean_acc",
+            "val_mIoU", "val_acc", "val_mean_acc",
+            "train_loss", "val_loss"
+        ])
+
+        for row in zip(epoch, lr_history,
+                        miou_train, acc_train, mean_acc_train,
+                        miou_val, acc_val, mean_acc_val,
+                        loss_train, loss_val):
+            writer.writerow(row)
 
 def main(args):
     date_and_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -226,11 +264,11 @@ def main(args):
                            0.1,
                            cont=continue_training)
         
-    scores_train = ClassificationRunningScore(num_classes)
-    scores_val = ClassificationRunningScore(num_classes)
+    scores_train = ClassificationRunningScore(num_classes, save_dir, continue_training, phase='train')
+    scores_val = ClassificationRunningScore(num_classes, save_dir, continue_training, phase='validation')
 
-    best_model_tracker = SaveBestModel(config, save_dir, monitor, cont = continue_training)
-    early_stopping = EarlyStopping(config, monitor, save_dir, cont = continue_training)
+    best_model_tracker = SaveBestModelExtrusionSeg(config, save_dir, monitor, cont = continue_training)
+    early_stopping = EarlyStoppingExtrusionSeg(config, monitor, save_dir, cont = continue_training)
 
     # Training
     monitor.log_and_print("### Training starts ###\n")
@@ -267,10 +305,91 @@ def main(args):
                       f"mAcc.: {scores_train.get_mean_class_accuracy():<.4f} | "
                       f"mIoU: {scores_train.get_mIoU():<.4f} ")
 
-
-            if i == 20:
+            if i == 1:
                 break
-        break
+
+        print(f"Train Epoch {epoch + 1}: "
+                f"Avg. Loss: {loss_train_sum.item()/len(train_dataloader):<.4f} | "
+                f"Acc.: {scores_train.get_accuracy():<.4f} | "
+                f"mAcc.: {scores_train.get_mean_class_accuracy():<.4f} | "
+                f"mIoU: {scores_train.get_mIoU():<.4f} ")
+        scores_train.epoch_finished(loss_train_sum.item()/len(train_dataloader))
+
+        # Evaluation
+        classifier.eval()
+        loss_val_sum = 0
+
+        with torch.no_grad():
+            for i, data in enumerate(val_dataloader):
+                pc = data['pc']
+                label = data['label']
+                pc = pc.transpose(2, 1)
+
+                pc, label = pc.to(device), label.to(device)
+                seg_pred, trans_feat = classifier(pc)
+
+                seg_pred = seg_pred.contiguous().view(-1, num_classes)
+                label = label.view(-1, 1).squeeze()
+
+                loss_val = criterion(seg_pred, label, trans_feat, weight=None)
+
+                scores_val.update(seg_pred, label)
+
+                loss_val_sum += loss_val
+
+                if args.verbose:
+                    print(f"Batch {i}/{len(val_dataloader) - 1}: "
+                        f"Loss/Sum: {loss_val.item():<.4f}/{loss_val_sum.item():<.4f} | "
+                        f"mAcc.: {scores_val.get_mean_class_accuracy():<.4f} | "
+                        f"mIoU: {scores_val.get_mIoU():<.4f} ")
+
+                if i == 1:
+                    break
+
+        print(f"Val Epoch {epoch + 1}: "
+                f"Avg. Loss: {loss_val_sum.item()/len(val_dataloader):<.4f} | "
+                f"Acc.: {scores_val.get_accuracy():<.4f} | "
+                f"mAcc.: {scores_val.get_mean_class_accuracy():<.4f} | "
+                f"mIoU: {scores_val.get_mIoU():<.4f} ")
+        scores_val.epoch_finished(loss_val_sum.item()/len(val_dataloader))
+        epoch_duration = (time.time() - epoch_start_time) / 60.0
+
+        current_lr = scheduler.get_current_learning_rate()
+        scheduler.update(loss_val_sum.item() / len(val_dataloader))
+
+        if args.wandb: # REFACTOR
+            if os.getenv("WANDB_API_KEY"):
+                wandb.log({'epochs': epoch, 
+                        'learning_rate': current_lr,
+                        'train_loss': scores_train.get_epoch_mse(epoch),
+                        'train_rmse': scores_train.get_epoch_rmse(epoch),
+                        'train_mae': scores_train.get_epoch_mae(epoch),
+                        'val_loss': scores_val.get_epoch_mse(epoch),
+                        'val_rmse': scores_val.get_epoch_rmse(epoch),
+                        'val_mae': scores_val.get_epoch_mae(epoch),
+                        'time': epoch_duration})
+        
+        best_model_tracker.update(loss_val_sum.item() / len(val_dataloader), epoch, classifier)
+
+        save_metrics(scheduler.get_lr_history(), 
+                *scores_train.get_metrics_list(), 
+                *scores_val.get_metrics_list(),
+                save_path = save_dir,
+                epoch = epoch)
+        
+        if early_stopping.update(loss_val_sum.item() / len(val_dataloader)):
+            if args.wandb:
+                try: # REFACTOR
+                    table.add_data(*scores_train.get_best_model_metrics(), *scores_val.get_best_model_metrics())
+                except Exception as e:
+                    monitor.log_and_print(e)
+            break
+
+        print("", flush=True)
+    
+    minutes, seconds = divmod(time.time() - start_time, 60)
+    monitor.log_and_print(f"Training time: {int(minutes)}:{int(seconds):02} minutes.\n"
+                          f"--- DONE ---\n")
 
 if __name__ == '__main__':
     args = parse_args()
