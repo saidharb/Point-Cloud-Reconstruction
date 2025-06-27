@@ -5,7 +5,6 @@ import importlib
 from datetime import datetime
 import time
 import csv
-import multiprocessing
 
 import torch
 from torch.utils.data import DataLoader
@@ -14,7 +13,6 @@ import wandb
 import numpy as np
 
 from dataset import PCExtrusionSegmentationDataset
-from models.Pointnet_Pointnet2_pytorch import provider
 from metrics import ClassificationRunningScore
 from utils import EarlyStoppingExtrusionSeg, Logger, LearningRateStepScheduler, SaveBestModelExtrusionSeg
 from LRSchedulers import CosineAnnealWarmRestart, StepLR
@@ -305,8 +303,8 @@ def main(args):
                       f"mAcc.: {scores_train.get_mean_class_accuracy():<.4f} | "
                       f"mIoU: {scores_train.get_mIoU():<.4f} ")
 
-            if i == 1:
-                break
+            # if i == 1:
+            #     break
 
         print(f"Train Epoch {epoch + 1}: "
                 f"Avg. Loss: {loss_train_sum.item()/len(train_dataloader):<.4f} | "
@@ -343,8 +341,8 @@ def main(args):
                         f"mAcc.: {scores_val.get_mean_class_accuracy():<.4f} | "
                         f"mIoU: {scores_val.get_mIoU():<.4f} ")
 
-                if i == 1:
-                    break
+                # if i == 1:
+                #     break
 
         print(f"Val Epoch {epoch + 1}: "
                 f"Avg. Loss: {loss_val_sum.item()/len(val_dataloader):<.4f} | "
