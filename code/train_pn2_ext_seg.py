@@ -108,7 +108,7 @@ def main(args):
         print(f"### NEW TRAINING STARTED ###"
           f"\n{date_and_time}\n", flush=True)
         os.makedirs(save_dir)
-        print(f"Created model save directory at: {os.path.abspath(save_dir)}\n")
+        print(f"Created model save directory at: {os.path.abspath(save_dir)}\n", flush=True)
     else:
         print(f"### CONTINUING TRAINING ###"
           f"\n{date_and_time}\n", flush=True)
@@ -221,7 +221,7 @@ def main(args):
 
     # Load data
     num_workers = 0 if device.type == 'cpu' else 8
-    print("Num. workers: ", num_workers)
+    print("Num. workers: ", num_workers, flush=True)
     train_dataset = PCExtrusionSegmentationDataset(DATA_DIR, 'train', use_normals=False, verbose=True)
     train_dataloader = DataLoader(train_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = True) # multiprocessing_context=multiprocessing.get_context("spawn")
     val_dataset = PCExtrusionSegmentationDataset(DATA_DIR, 'validation', use_normals=False, verbose=True)
@@ -300,7 +300,7 @@ def main(args):
                 print(f"Batch {i}/{len(train_dataloader) - 1}: "
                       f"Loss/Sum: {loss_train.item():<.4f}/{loss_train_sum.item():<.4f} | "
                       f"mAcc.: {scores_train.get_mean_class_accuracy():<.4f} | "
-                      f"mIoU: {scores_train.get_mIoU():<.4f} ")
+                      f"mIoU: {scores_train.get_mIoU():<.4f} ", flush=True)
 
             # if i == 1:
             #     break
@@ -309,7 +309,7 @@ def main(args):
                 f"Avg. Loss: {loss_train_sum.item()/len(train_dataloader):<.4f} | "
                 f"Acc.: {scores_train.get_accuracy():<.4f} | "
                 f"mAcc.: {scores_train.get_mean_class_accuracy():<.4f} | "
-                f"mIoU: {scores_train.get_mIoU():<.4f} ")
+                f"mIoU: {scores_train.get_mIoU():<.4f} ", flush=True)
         scores_train.epoch_finished(loss_train_sum.item()/len(train_dataloader))
 
         # Evaluation
@@ -337,7 +337,7 @@ def main(args):
                     print(f"Batch {i}/{len(val_dataloader) - 1}: "
                         f"Loss/Sum: {loss_val.item():<.4f}/{loss_val_sum.item():<.4f} | "
                         f"mAcc.: {scores_val.get_mean_class_accuracy():<.4f} | "
-                        f"mIoU: {scores_val.get_mIoU():<.4f} ")
+                        f"mIoU: {scores_val.get_mIoU():<.4f} ", flush=True)
 
                 # if i == 1:
                 #     break
@@ -346,7 +346,7 @@ def main(args):
                 f"Avg. Loss: {loss_val_sum.item()/len(val_dataloader):<.4f} | "
                 f"Acc.: {scores_val.get_accuracy():<.4f} | "
                 f"mAcc.: {scores_val.get_mean_class_accuracy():<.4f} | "
-                f"mIoU: {scores_val.get_mIoU():<.4f} ")
+                f"mIoU: {scores_val.get_mIoU():<.4f} ", flush=True)
         scores_val.epoch_finished(loss_val_sum.item()/len(val_dataloader))
         epoch_duration = (time.time() - epoch_start_time) / 60.0
 
