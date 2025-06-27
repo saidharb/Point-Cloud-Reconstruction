@@ -7,18 +7,18 @@ from code.dataset import PointCloudEmbeddingSequenceDataset
 import open3d as o3d
 
 
-train = PointCloudEmbeddingSequenceDataset("../data", "train")
+#train = PointCloudEmbeddingSequenceDataset("../data", "train")
 val = PointCloudEmbeddingSequenceDataset("../data", "validation")
 test = PointCloudEmbeddingSequenceDataset("../data", "test")
 
 corrupt_files = []
 counter = 0
 import time
-for dataset in [train, val, test]:
+for dataset in [val, test]:
     start = time.time()
-    print("START")
+    print("START", flush=True)
     for i, data in enumerate(dataset):
-        print(i, end='\r')
+        print(i, flush=True)
         try:
             data = dataset[i]
             pc_path = dataset.get_pc_path(i)
@@ -44,8 +44,8 @@ for dataset in [train, val, test]:
             corrupt_files.append(pc_path)
             
     duration = (time.time() - start)/60
-    print(f"{round(duration, 2)} minutes END\n")
+    print(f"{round(duration, 2)} minutes END\n", flush=True)
     
 end_duration = (time.time() - start)/60
-print(f"{round(end_duration, 2)} minutes FINNISH\n")
-print(counter, corrupt_files)
+print(f"{round(end_duration, 2)} minutes FINNISH\n", flush=True)
+print(counter, corrupt_files, flush=True)
