@@ -135,7 +135,6 @@ def main(args):
     model = importlib.import_module(model_name)
 
     num_classes = 10 # max number of extrusions in dataset
-    num_points = 10000
     classifier = model.get_model(num_classes)
     criterion = model.get_loss()
     classifier.apply(inplace_relu)
@@ -322,7 +321,6 @@ def main(args):
                 pc = data['pc']
                 label = data['label']
                 pc = pc.transpose(2, 1)
-
                 pc, label = pc.to(device), label.to(device)
                 seg_pred, trans_feat = classifier(pc)
 
@@ -389,3 +387,6 @@ def main(args):
 if __name__ == '__main__':
     args = parse_args()
     main(args)
+
+# TODO:
+# README

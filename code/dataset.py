@@ -201,12 +201,12 @@ class PCExtrusionSegmentationDataset(BaseDataset):
         point_cloud = o3d.io.read_point_cloud(self.pc[idx])
         point_cloud = torch.tensor(np.asarray(point_cloud.points), dtype = torch.float32) # [N, C]
         sample_idx = random.sample(list(range(point_cloud.shape[0])), N_POINTS)
-        # point_cloud = point_cloud[sample_idx] # IGNORE_INDICES
+        point_cloud = point_cloud[sample_idx] # IGNORE_INDICES
         
         with h5py.File(self.all_label_files[idx], 'r') as fp:
             labels = fp["labels"][:]
         labels = torch.tensor(labels, dtype=torch.long)
-        # labels = labels[sample_idx]
+        labels = labels[sample_idx]
 
         id = self.get_id(idx)
         data = {"pc": point_cloud,
