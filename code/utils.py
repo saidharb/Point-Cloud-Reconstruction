@@ -286,7 +286,64 @@ class LearningRateStepScheduler():
                                           f"by a factor of {self.factor} results in a learning rate of "
                                           f"{self.get_current_learning_rate() * self.factor} which is "
                                           "below the minimum learning rate of {self.min_lr}.")
-                
+
+class LearningRateStepSchedulerExtrSeg():
+
+    def __init__(self, optimizer, factor, patience, logger, save_dir, cont = False):
+        self.optimizer = optimizer
+        self.factor = factor
+        self.patience = patience
+        self.running_patience = patience
+        self.best_miou = 0
+        self.lr_history = []
+        self.logger = logger
+        self.min_lr = 1e-6
+        if cont:
+            df = pd.read_csv(os.path.join(save_dir, 'metrics.csv'))
+            data_dict = df.to_dict(orient = 'list')
+            self.lr_history = data_dict['learning_rate']
+            self.set_new_learning_rate(historic_lr = self.lr_history[-1])
+
+    def get_current_learning_rate(self):
+        return self.optimizer.param_groups[0]['lr']
+    
+    def set_new_learning_rate(self, historic_lr = None):
+        new_lr = self.compute_lr()
+        if historic_lr:
+            for param_group in self.optimizer.param_groups:
+                param_group['lr'] = historic_lr
+        else:
+            for param_group in self.optimizer.param_groups:
+                param_group['lr'] = new_lr
+
+    def compute_lr(self):
+        lr = self.get_current_learning_rate() * self.factor
+        return lr
+
+    def get_lr_history(self):
+        return self.lr_history
+
+    def update(self, metric):
+        self.lr_history.append(self.get_current_learning_rate())
+
+        if metric <= self.best_miou:
+            self.running_patience -= 1
+        else:
+            self.running_patience = self.patience
+            self.best_miou = metric
+
+        if self.running_patience == 0:
+            if self.get_current_learning_rate() * self.factor > self.min_lr:
+                self.logger.log_and_print(f"No increase in val mIous since {self.patience} epochs.\n"
+                            f"Reducing learning rate from {self.get_current_learning_rate()} to "
+                            f"{self.get_current_learning_rate() * self.factor}.")
+                self.set_new_learning_rate()
+                self.running_patience = self.patience
+            else:
+                self.logger.log_and_print(f"Reducing learning rate {self.get_current_learning_rate()} "
+                                          f"by a factor of {self.factor} results in a learning rate of "
+                                          f"{self.get_current_learning_rate() * self.factor} which is "
+                                          "below the minimum learning rate of {self.min_lr}.")
 
         
 # TODO
