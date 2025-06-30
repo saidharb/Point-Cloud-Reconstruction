@@ -127,7 +127,7 @@ class SaveBestModelExtrusionSeg():
             torch.save(checkpoint, checkpoint_path)
 
         
-        best_model_bool = metric < self.best_miou
+        best_model_bool = metric > self.best_miou
         if best_model_bool:
             self.logger.log_and_print(f"New best model found with validation mIoU: {metric:.8f} --- "
                                       f"Improvement to previous best in epoch"

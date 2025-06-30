@@ -14,7 +14,8 @@ import numpy as np
 
 from dataset import PCExtrusionSegmentationDataset
 from metrics import ClassificationRunningScore
-from utils import EarlyStoppingExtrusionSeg, Logger, LearningRateStepScheduler, SaveBestModelExtrusionSeg
+from utils import EarlyStoppingExtrusionSeg, Logger, SaveBestModelExtrusionSeg
+from utils import LearningRateStepSchedulerExtSeg
 from LRSchedulers import CosineAnnealWarmRestart, StepLR
 
 def parse_args():
@@ -238,7 +239,7 @@ def main(args):
         )
     
     if args.lr_type == 'step_adv':
-        scheduler = LearningRateStepScheduler(optimizer, 
+        scheduler = LearningRateStepSchedulerExtSeg(optimizer, 
                                               0.1, 
                                               args.lr_patience, 
                                               monitor, 
@@ -351,7 +352,7 @@ def main(args):
         epoch_duration = (time.time() - epoch_start_time) / 60.0
 
         current_lr = scheduler.get_current_learning_rate()
-        scheduler.update(loss_val_sum.item() / len(val_dataloader))
+        scheduler.update(scores_val.get_epoch_miou(epoch))
 
         if args.wandb:
             if os.getenv("WANDB_API_KEY"):
@@ -367,7 +368,7 @@ def main(args):
                         'val_mean_acc': scores_val.get_epoch_mean_acc(epoch),
                         'time': epoch_duration})
         
-        best_model_tracker.update(loss_val_sum.item() / len(val_dataloader), epoch, classifier)
+        best_model_tracker.update(scores_val.get_epoch_miou(epoch), epoch, classifier)
 
         save_metrics(scheduler.get_lr_history(), 
                 *scores_train.get_metrics_list(), 
@@ -375,7 +376,7 @@ def main(args):
                 save_path = save_dir,
                 epoch = epoch)
         
-        if early_stopping.update(loss_val_sum.item() / len(val_dataloader)):
+        if early_stopping.update(scores_val.get_epoch_miou(epoch)):
             break
 
         print("", flush=True)
