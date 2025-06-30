@@ -37,10 +37,28 @@ def inplace_relu(m):
     if classname.find('ReLU') != -1:
         m.inplace=True
 
+def save_test_metrics(*lists, save_dir):
+    tp, fp, fn, class_iou, class_acc, miou, acc, mean_acc, loss, = lists
+    csv_path = os.path.join(save_dir, 'test_metrics.csv')
+    with open(csv_path, mode='w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            "mIoU", "acc", "mean_acc", "loss"
+        ])
+        for row in zip(
+                        miou, acc, mean_acc, loss):
+            writer.writerow(row)
+    
+    np.savez(os.path.join(save_dir, 'test_metrics.npz'),
+             tp=np.array(tp), 
+             fp=np.array(fp), 
+             fn=np.array(fn), 
+             class_iou=np.array(class_iou), 
+             class_acc=np.array(class_acc))
+
 def main(args):
     
     print("### TEST STARTED ###\n")
-    start_time = time.time()
 
     # Find data directory
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -98,6 +116,39 @@ def main(args):
 
     scores_test = ClassificationRunningScore(num_classes, model_dir, cont=False, phase='test')
     monitor.log_and_print("### Test starts ###\n")
+
+    loss_train_sum = 0.0
+    classifier.eval()
+    with torch.no_grad():
+        for i, data in enumerate(test_dataloader):
+            pc = data['pc']
+            label = data['label']
+            pc = pc.transpose(2, 1) # [B, C, N]
+            pc, label = pc.to(device), label.to(device)
+            seg_pred, trans_feat = classifier(pc)
+
+            seg_pred = seg_pred.contiguous().view(-1, num_classes)
+            label = label.view(-1, 1).squeeze()
+
+            loss_test = criterion(seg_pred, label, trans_feat, weight=None)
+            scores_test.update(seg_pred, label)
+
+            loss_train_sum += loss_test
+            if args.verbose:
+                print(f"Batch {i}/{len(test_dataloader) - 1}: "
+                      f"Loss/Sum: {loss_test.item():<.4f}/{loss_train_sum.item():<.4f} | "
+                      f"mAcc.: {scores_test.get_mean_class_accuracy():<.4f} | "
+                      f"mIoU: {scores_test.get_mIoU():<.4f} ", flush=True)
+
+    scores_test.epoch_finished(loss_train_sum.item() / len(test_dataloader))
+    monitor.log_and_print("### RESULTS ###")
+    for a in scores_test.get_metrics_list():
+        monitor.log_and_print(a)
+
+    save_test_metrics(*scores_test.get_metrics_list(), save_dir=model_dir)
+
+
+   
 
     
 
