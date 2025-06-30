@@ -161,8 +161,8 @@ class EarlyStopping():
             df = pd.read_csv(os.path.join(save_dir, 'metrics.csv'))
             data_dict = df.to_dict(orient = 'list')
             self.epoch = len(data_dict['epoch'])
-            self.best_loss = max(data_dict['val_mse'])
-            self.best_epoch = data_dict['val_mse'].index(max(data_dict['val_mse']))
+            self.best_loss = min(data_dict['val_mse'])
+            self.best_epoch = data_dict['val_mse'].index(min(data_dict['val_mse']))
             self.running_epoch = self.epoch - self.best_epoch
 
 
@@ -186,28 +186,28 @@ class EarlyStoppingExtrusionSeg():
         self.max_epochs = config['early_stopping']
         self.running_epoch = 0
         self.epoch = 0
-        self.best_loss = float('inf')
+        self.best_miou = 0
         self.best_epoch = 0
         self.logger = logger
         if cont:
             df = pd.read_csv(os.path.join(save_dir, 'mean_metrics.csv'))
             data_dict = df.to_dict(orient = 'list')
             self.epoch = len(data_dict['epoch'])
-            self.best_loss = max(data_dict['val_loss'])
-            self.best_epoch = data_dict['val_loss'].index(max(data_dict['val_loss']))
+            self.best_loss = max(data_dict['val_mIoU'])
+            self.best_epoch = data_dict['val_mIoU'].index(max(data_dict['val_mIoU']))
             self.running_epoch = self.epoch - self.best_epoch
 
 
-    def update(self, loss):
-        if loss < self.best_loss:
+    def update(self, metric):
+        if metric > self.best_miou:
             self.best_epoch = self.epoch
             self.running_epoch = 0
-            self.best_loss = loss
+            self.best_miou = metric
         else:
             self.running_epoch += 1
         self.epoch += 1
         if self.running_epoch == self.max_epochs:
-            self.logger.log_and_print(f"Early stopping: Validation loss did not decrease for {self.max_epochs} epochs "
+            self.logger.log_and_print(f"Epoch {self.epoch}: Early stopping: Validation mIoU did not increase for {self.max_epochs} epochs "
                                       f"from {self.best_loss:.8f} since epoch {self.best_epoch + 1}.")
             return True
         return False
@@ -286,6 +286,7 @@ class LearningRateStepScheduler():
                                           f"by a factor of {self.factor} results in a learning rate of "
                                           f"{self.get_current_learning_rate() * self.factor} which is "
                                           "below the minimum learning rate of {self.min_lr}.")
+                
 
         
 # TODO
