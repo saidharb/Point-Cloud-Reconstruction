@@ -12,11 +12,10 @@ import torch.nn as nn
 import wandb
 import numpy as np
 
-from dataset import PCExtrusionSegmentationDataset
-from metrics import ClassificationRunningScore
-from utils import EarlyStoppingExtrusionSeg, Logger, SaveBestModelExtrusionSeg
-from utils import LearningRateStepSchedulerExtSeg
-from LRSchedulers import CosineAnnealWarmRestart, StepLR
+from code.dataset import PCExtrusionSegmentationDataset
+from code.metrics import ClassificationRunningScore
+from code.utils import EarlyStoppingExtrusionSeg, Logger, SaveBestModelExtrusionSeg, LearningRateStepSchedulerExtrSeg
+from code.LRSchedulers import CosineAnnealWarmRestart, StepLR
 
 def parse_args():
     '''PARAMETERS'''
@@ -239,7 +238,7 @@ def main(args):
         )
     
     if args.lr_type == 'step_adv':
-        scheduler = LearningRateStepSchedulerExtSeg(optimizer, 
+        scheduler = LearningRateStepSchedulerExtrSeg(optimizer, 
                                               0.1, 
                                               args.lr_patience, 
                                               monitor, 
