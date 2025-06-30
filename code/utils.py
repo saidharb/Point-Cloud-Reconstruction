@@ -9,6 +9,7 @@ import torch.nn as nn
 import pandas as pd
 
 class SaveBestModel():
+    """Based on val loss (MSE)"""
 
     def __init__(self, config, save_dir, logger, cont = False):
         self.best_val_loss = float('inf')
@@ -25,9 +26,9 @@ class SaveBestModel():
         if cont:
             df = pd.read_csv(os.path.join(save_dir, 'metrics.csv'))
             data_dict = df.to_dict(orient = 'list')
-            self.best_val_loss = max(data_dict['val_mse'])
+            self.best_val_loss = min(data_dict['val_mse'])
             self.current_epoch = len(data_dict['epoch'])
-            self.best_epoch = data_dict['val_mse'].index(max(data_dict['val_mse']))
+            self.best_epoch = data_dict['val_mse'].index(min(data_dict['val_mse']))
             self.start_time = time.time() - config['training_time_min'] * 60.0 
 
     def create_checkpoint(self, model):
@@ -78,9 +79,10 @@ class SaveBestModel():
         self.current_epoch += 1
 
 class SaveBestModelExtrusionSeg():
+    """based on mIoU"""
 
     def __init__(self, config, save_dir, logger, cont = False):
-        self.best_val_loss = float('inf')
+        self.best_miou = 0
         self.save_dir = save_dir
         self.best_model_path = os.path.join(self.save_dir, "best.pth")
         self.current_epoch = 0
@@ -94,9 +96,9 @@ class SaveBestModelExtrusionSeg():
         if cont:
             df = pd.read_csv(os.path.join(save_dir, 'mean_metrics.csv'))
             data_dict = df.to_dict(orient = 'list')
-            self.best_val_loss = max(data_dict['val_loss'])
+            self.best_miou = max(data_dict['val_mIoU'])
             self.current_epoch = len(data_dict['epoch'])
-            self.best_epoch = data_dict['val_loss'].index(max(data_dict['val_loss']))
+            self.best_epoch = data_dict['val_mIoU'].index(max(data_dict['val_mIoU']))
             self.start_time = time.time() - config['training_time_min'] * 60.0
 
     def create_checkpoint(self, model):
@@ -112,12 +114,12 @@ class SaveBestModelExtrusionSeg():
             }     
         return checkpoint 
 
-    def update(self, val_loss, epoch, model):
+    def update(self, metric, epoch, model):
         
-        checkpoint_bool = (self.current_epoch + 1) %self.save_interval == 0 and not val_loss < self.best_val_loss
+        checkpoint_bool = (self.current_epoch + 1) % self.save_interval == 0 and not metric > self.best_miou
         if checkpoint_bool:
             checkpoint_path = os.path.abspath(os.path.join(self.save_dir, f'ckpt_{self.current_epoch + 1}.pth'))
-            self.logger.log_and_print(f"Saving checkpoint model every {self.save_interval} epochs to: "
+            self.logger.log_and_print(f"Epoch {epoch}: Saving checkpoint model every {self.save_interval} epochs to: "
                                       f"{checkpoint_path}")
             self.config['final_epoch'] = self.current_epoch + 1
             self.config['training_time_min'] = round((time.time() - self.start_time) / 60.0, 2)
@@ -125,14 +127,14 @@ class SaveBestModelExtrusionSeg():
             torch.save(checkpoint, checkpoint_path)
 
         
-        best_model_bool = val_loss < self.best_val_loss
+        best_model_bool = metric < self.best_miou
         if best_model_bool:
-            self.logger.log_and_print(f"New best model found with validation MSE: {val_loss:.8f} --- "
+            self.logger.log_and_print(f"New best model found with validation mIoU: {metric:.8f} --- "
                                       f"Improvement to previous best in epoch"
-                                      f" {self.best_epoch + 1}: {(self.best_val_loss - val_loss):.8f}")
-            self.best_val_loss = val_loss
+                                      f" {self.best_epoch + 1}: {(metric - self.best_miou):.8f}")
+            self.best_miou = metric
             self.best_epoch = epoch
-            self.logger.log_and_print(f"Saving model to: {os.path.abspath(self.best_model_path)}")
+            self.logger.log_and_print(f"Epoch {epoch}: Saving model to: {os.path.abspath(self.best_model_path)}")
             self.config['final_epoch'] = self.current_epoch + 1
             self.config['training_time_min'] = round((time.time() - self.start_time) / 60.0, 2)
             checkpoint = self.create_checkpoint(model)
