@@ -39,8 +39,8 @@ def main():
         length = len(dataset)
         
         for i in range(length):
-            print(i)
-            
+            print(f"\r{i}/{length}", end="")
+
             try:
                 data = dataset[i]
                 id = data['id']
@@ -71,11 +71,12 @@ def main():
                     
             except Exception as e:
                 error_dict[i] = e
-                
-        break
 
-    for k,v in error_dict.items():
-        print(f"Error at index {k}: {v}")
+    if error_dict:
+        for k,v in error_dict.items():
+            print(f"Error at index {k}: {v}")
+    else:
+        print("All point clouds processed successfully.")
 
 if __name__ == "__main__":
     main()
