@@ -51,7 +51,7 @@ def main():
                 pcs = split_pc_by_labels(pc, label)
         
                 sequences = {}
-                h5_path = os.path.join(DATA_DIR, "pc_from_vec_labels", id[:4], id + ".h5") # Replace ../data with DATA_DIR
+                h5_path = os.path.join(DATA_DIR, "pc_from_vec_labels", id[:4], id + ".h5") 
                 with h5py.File(h5_path, 'r') as f:
                     for class_id, sequence in f['sequences'].items():
                         sequence = sequence[:]
