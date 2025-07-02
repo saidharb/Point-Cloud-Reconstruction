@@ -26,7 +26,7 @@ class Config():
 
 
 class get_pn2_deepcad_model(nn.Module):
-    def __init__(self, cfg, normal_channel=False, latent_dim=256):
+    def __init__(self, cfg, normal_channel=False):
         super(get_pn2_deepcad_model, self).__init__()
         in_channel = 3 if normal_channel else 0
         self.normal_channel = normal_channel

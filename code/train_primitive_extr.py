@@ -16,6 +16,7 @@ from code.dataset import PCExtrusionSegmentationDataset
 from code.metrics import ClassificationRunningScore
 from code.utils import EarlyStoppingExtrusionSeg, Logger, SaveBestModelExtrusionSeg, LearningRateStepSchedulerExtrSeg
 from code.LRSchedulers import CosineAnnealWarmRestart, StepLR
+from code.pn2_deepcad import Config
 
 def parse_args():
     '''PARAMETERS'''
@@ -27,6 +28,24 @@ def parse_args():
                     default='data', 
                     help='data directory relative to root directory')
     parser.add_argument('--output_dir', type=str, required=True, help='name of output directory in trained_models')
+    parser.add_argument('--batch_size', type=int, default=24, help='batch size')
+    parser.add_argument('--gpu', action='store_true', default=False, 
+                        help="Use multiple GPU's for training.")
+    parser.add_argument('--learning_rate', type=float, default=0.001, help="initial learning rate")
+    parser.add_argument('--max_epochs', type=int, default=50, help='maximum number of epochs')
+    parser.add_argument('--early_stopping', 
+                        type=int, 
+                        default=20, 
+                        help="abort training after this amount of epochs with no validation loss decrease")
+    parser.add_argument('--save_interval', type=int, default=20, help='save interval for models')
+    parser.add_argument('--lr_type', type=str, choices=['step', 'cosine', 'step_adv'], default='step', 
+                        help="Learning rate type: step for a simple step learning rate scheduler, "
+                        "step_adv for reducing learning rate on val_loss plateau or cosine for cosine "
+                        "annealing with warm restarts")
+    parser.add_argument('--wandb', action='store_true', default=False, help='enable WandB tracking')
+    parser.add_argument('--name', type=str, default="test_run", help="name of WandB run")
+    parser.add_argument('--lr_patience', type=int, default=15, help="patience in epochs for learning rate decay")
+    parser.add_argument('--verbose', action='store_true', default=False, help='output per batch metrics')
     return parser.parse_args()
 
 def inplace_relu(m):
@@ -65,6 +84,63 @@ def main(args):
         monitor.log_and_print("### CONTINUING TRAINING ###")
     else:
         monitor.log_and_print("### NEW TRAINING STARTED ###")
+
+    # Print parameters
+    monitor.log_and_print("### Parameters ###\n")
+    for key, value in vars(args).items():
+        monitor.log_and_print(f"{key}: {value}")
+    print("\n--- DONE ---\n", flush=True)
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    cfg = Config()
+    model_name = "pn2_deepcad"
+    model = importlib.import_module(model_name)
+    classifier = model.get_pn2_deepcad_model(cfg, normal_channel=False)
+    classifier.apply(inplace_relu)
+
+    if continue_training:
+        monitor.log_and_print(f"### Load pretrained {model_name} model ###\n")
+        model_path = os.path.join(save_dir, 'last.pth')
+        saved_model = torch.load(model_path, map_location=torch.device(device), weights_only=True)
+        state_dict = saved_model['model_state_dict']
+        first_epoch = saved_model['config']['final_epoch'] 
+        classifier.load_state_dict(state_dict)
+        classifier = classifier.to(device)
+        criterion = criterion.to(device)
+        monitor.log_and_print(f'\nLoaded state dict from {model_path}.')
+    else:
+        monitor.log_and_print(f"### Load new {model_name} model ###\n")
+
+        ## Cuda
+    monitor.log_and_print(f"Using device: {device}\n")
+    monitor.log_and_print(f"Number of devices: {torch.cuda.device_count()}")#
+    batch_size = args.batch_size
+    if args.gpu and torch.cuda.device_count() > 1:
+        monitor.log_and_print(f"Using {torch.cuda.device_count()} GPUs.\n")#
+        classifier = nn.DataParallel(classifier)
+        batch_size *= torch.cuda.device_count()
+        monitor.log_and_print(f"Batch size multiplied with number of devices {torch.cuda.device_count()}, current batch size: {batch_size}")
+    classifier = classifier.to(device)
+    criterion = criterion.to(device)
+    print("--- DONE ---\n", flush=True)
+
+    config = {
+        'learning_rate': args.learning_rate,
+        'batch_size': batch_size,
+        'max_epochs': args.max_epochs,
+        'optimizer': 'Adam',
+        'model_type': model_name,
+        'save_interval': args.save_interval,
+        'early_stopping': args.early_stopping,
+        'start_time': date_and_time,
+        'lr_type': args.lr_type,
+        'gpu': args.gpu,
+    }
+    if continue_training:
+        model_path = os.path.join(save_dir, 'last.pth')
+        saved_model = torch.load(model_path, map_location=torch.device(device), weights_only=True)
+        config = saved_model['config']
 
 if __name__ == '__main__':
     args = parse_args()
