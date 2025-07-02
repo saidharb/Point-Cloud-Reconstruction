@@ -10,6 +10,7 @@ import open3d as o3d
 import torch
 from torch.utils.data import Dataset
 from tqdm import tqdm
+import pickle
 
 from models.DeepCAD.cadlib.macro import EOS_VEC, MAX_TOTAL_LEN
 
@@ -219,11 +220,12 @@ class PCExtrusionSegmentationDataset(BaseDataset):
         return len(self.pc)
     
 class PCExtrusionSequenceDataset():
-    def __init__(self, root, split, verbose=False):
+    def __init__(self, root, split, cfg, verbose=False):
         self.pc_path = os.path.join(root, "pc_extrusion")
         self.split_path = os.path.join(root, "train_val_test_split.json")
         self.verbose = verbose
         self.split = split
+        self.cfg = cfg
 
         # Scrutinize if the id's mentioned in the split actually exist as directories
         valid_dirs = []
@@ -234,22 +236,29 @@ class PCExtrusionSequenceDataset():
         
         self.pc = []
         self.labels = []
-        
-        for dir in valid_dirs:
-            pc_paths = glob(os.path.join(dir, "*.ply"))
-            for ply_path in pc_paths:
-                h5_path = ply_path.replace("pc_extrusion", "pc_extrusion_labels").replace(".ply", ".h5")
-        
-                if not os.path.exists(h5_path):
-                    continue
-                try:
-                    with h5py.File(h5_path, "r") as f:
-                        if "sequence" in f and len(f["sequence"]) > 0:
-                            self.pc.append(ply_path)
-                            self.labels.append(h5_path)
-                except Exception as e:
-                    if self.verbose:
-                        print(f"Skipped corrupted or unreadable file: {h5_path} ({e})")
+
+        CACHE_FILE = f"pc_dataset_cache_{self.split}.pkl"
+        if os.path.exists(CACHE_FILE):
+            with open(CACHE_FILE, 'rb') as f:
+                self.pc, self.labels = pickle.load(f)
+        else:
+            for dir in valid_dirs:
+                pc_paths = glob(os.path.join(dir, "*.ply"))
+                for ply_path in pc_paths:
+                    h5_path = ply_path.replace("pc_extrusion", "pc_extrusion_labels").replace(".ply", ".h5")
+            
+                    if not os.path.exists(h5_path):
+                        continue
+                    try:
+                        with h5py.File(h5_path, "r") as f:
+                            if "sequence" in f and len(f["sequence"]) > 0:
+                                self.pc.append(ply_path)
+                                self.labels.append(h5_path)
+                    except Exception as e:
+                        if self.verbose:
+                            print(f"Skipped corrupted or unreadable file: {h5_path} ({e})")
+            with open(CACHE_FILE, "wb") as f:
+                pickle.dump((self.pc, self.labels), f)
 
     def __getitem__(self, idx):
         point_cloud = o3d.io.read_point_cloud(self.pc[idx])
@@ -263,10 +272,13 @@ class PCExtrusionSequenceDataset():
 
         extr_id = torch.tensor(extr_id, dtype=torch.long)
         sequence = torch.tensor(sequence, dtype=torch.long)
+
+        pad_len = self.cfg.max_total_len - sequence.shape[0]
+        cad_vec = np.concatenate([sequence, EOS_VEC[np.newaxis].repeat(pad_len, axis=0)], axis=0)
         
         return {'pc': point_cloud,
                'extrusion_id': extr_id,
-               'sequence': sequence}
+               'sequence': cad_vec}
 
     def read_split(self):
         with open(self.split_path, "r") as fp:
