@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from models.Pointnet_Pointnet2_pytorch.models.pointnet2_utils import PointNetSetAbstractionMsg, PointNetSetAbstraction
@@ -23,6 +24,10 @@ class Config():
         self.args_dim = ARGS_DIM
         self.n_commands = len(ALL_COMMANDS)  
         self.n_args = N_ARGS
+        self.loss_weights = {
+            "loss_cmd_weight": 1.0,
+            "loss_args_weight": 2.0
+        }
 
 
 class get_pn2_deepcad_model(nn.Module):
@@ -69,8 +74,6 @@ class get_pn2_deepcad_model(nn.Module):
         }
 
         return res
-
-
 
  
 

@@ -12,11 +12,12 @@ import torch.nn as nn
 import wandb
 import numpy as np
 
-from code.dataset import PCExtrusionSegmentationDataset
+from code.dataset import PCExtrusionSequenceDataset
 from code.metrics import ClassificationRunningScore
 from code.utils import EarlyStoppingExtrusionSeg, Logger, SaveBestModelExtrusionSeg, LearningRateStepSchedulerExtrSeg
 from code.LRSchedulers import CosineAnnealWarmRestart, StepLR
 from code.pn2_deepcad import Config
+from models.DeepCAD.trainer.loss import CADLoss
 
 def parse_args():
     '''PARAMETERS'''
@@ -97,6 +98,7 @@ def main(args):
     model_name = "pn2_deepcad"
     model = importlib.import_module(model_name)
     classifier = model.get_pn2_deepcad_model(cfg, normal_channel=False)
+    criterion = CADLoss(cfg)
     classifier.apply(inplace_relu)
 
     if continue_training:
@@ -141,6 +143,42 @@ def main(args):
         model_path = os.path.join(save_dir, 'last.pth')
         saved_model = torch.load(model_path, map_location=torch.device(device), weights_only=True)
         config = saved_model['config']
+
+    if args.wandb:
+        print("### WANDB ###\n", flush=True)
+        if os.getenv("WANDB_API_KEY"):
+            print("Logging into WandB...\n", flush=True)
+            wandb.login(key=os.getenv("WANDB_API_KEY"))
+
+            run_id_file = os.path.join(save_dir, "wandb_run_id.txt")
+            if os.path.exists(run_id_file):
+                with open(run_id_file, "r") as f:
+                    run_id = f.read().strip()
+                print(f"Resuming WandB run with ID: {run_id}\n", flush=True)
+                wandb.init(project='Master Thesis',
+                        id=run_id,
+                        resume="allow",
+                        config=config)
+            else:
+                run = wandb.init(project='Master Thesis',
+                                name=args.name,
+                                config=config)
+                run_id = run.id
+                with open(run_id_file, "w") as f:
+                    f.write(run_id)
+                print(f"New WandB run started with ID: {run_id}\n", flush=True)
+        else:
+            print("No WandB API key provided, WandB is disabled.\n", flush=True)
+
+    # Load data
+    num_workers = 0 if device.type == 'cpu' else 8
+    print("Num. workers: ", num_workers, flush=True)
+    train_dataset = PCExtrusionSequenceDataset(DATA_DIR, 'train', verbose=True)
+    train_dataloader = DataLoader(train_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = True) # multiprocessing_context=multiprocessing.get_context("spawn")
+    val_dataset = PCExtrusionSequenceDataset(DATA_DIR, 'validation', verbose=True)
+    val_dataloader = DataLoader(val_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = False) # multiprocessing_context=multiprocessing.get_context("spawn")
+    monitor.log(f"Train Dataset: {len(train_dataset)}, Validation Dataset: {len(val_dataset)}")
+    monitor.log(f"Train Dataloader: {len(train_dataloader)}, Validation Dataloader: {len(val_dataloader)}")
 
 if __name__ == '__main__':
     args = parse_args()
