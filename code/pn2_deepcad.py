@@ -12,6 +12,13 @@ def _make_batch_first(*args):
         return arg.permute(1, 0, *range(2, arg.dim())) if arg is not None else None
     return (*(arg.permute(1, 0, *range(2, arg.dim())) if arg is not None else None for arg in args),)
 
+def _make_seq_first(*args):
+    # N, S, ... -> S, N, ...
+    if len(args) == 1:
+        arg, = args
+        return arg.permute(1, 0, *range(2, arg.dim())) if arg is not None else None
+    return (*(arg.permute(1, 0, *range(2, arg.dim())) if arg is not None else None for arg in args),)
+
 class Config():
     def __init__(self):
         self.d_model = 256
@@ -65,6 +72,9 @@ class get_pn2_deepcad_model(nn.Module):
         x = self.tanh(self.fc3(x))
 
         x = self.bottleneck(x)
+        x = x.unsqueeze(1)
+        x = _make_seq_first(x)
+
         out_logits = self.decoder(x)
         out_logits = _make_batch_first(*out_logits)
 

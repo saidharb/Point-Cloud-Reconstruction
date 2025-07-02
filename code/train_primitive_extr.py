@@ -101,6 +101,7 @@ def main(args):
     criterion = CADLoss(cfg)
     classifier.apply(inplace_relu)
 
+    first_epoch = 0
     if continue_training:
         monitor.log_and_print(f"### Load pretrained {model_name} model ###\n")
         model_path = os.path.join(save_dir, 'last.pth')
@@ -173,13 +174,73 @@ def main(args):
     # Load data
     num_workers = 0 if device.type == 'cpu' else 8
     print("Num. workers: ", num_workers, flush=True)
-    train_dataset = PCExtrusionSequenceDataset(DATA_DIR, 'train', verbose=True)
+    train_dataset = PCExtrusionSequenceDataset(DATA_DIR, 'train', cfg, verbose=True)
     train_dataloader = DataLoader(train_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = True) # multiprocessing_context=multiprocessing.get_context("spawn")
-    val_dataset = PCExtrusionSequenceDataset(DATA_DIR, 'validation', verbose=True)
+    val_dataset = PCExtrusionSequenceDataset(DATA_DIR, 'validation', cfg, verbose=True)
     val_dataloader = DataLoader(val_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = False) # multiprocessing_context=multiprocessing.get_context("spawn")
-    monitor.log(f"Train Dataset: {len(train_dataset)}, Validation Dataset: {len(val_dataset)}")
-    monitor.log(f"Train Dataloader: {len(train_dataloader)}, Validation Dataloader: {len(val_dataloader)}")
+    monitor.log_and_print(f"Train Dataset: {len(train_dataset)}, Validation Dataset: {len(val_dataset)}")
+    monitor.log_and_print(f"Train Dataloader: {len(train_dataloader)}, Validation Dataloader: {len(val_dataloader)}")
 
+        ## Optimizer
+    optimizer = torch.optim.Adam(
+        classifier.parameters(),
+        lr=args.learning_rate,
+        betas=(0.9, 0.999),
+        eps=1e-08,
+        weight_decay=1e-4
+        )
+    
+    if args.lr_type == 'step_adv': # TODO: BASED ON WHICH METRIC?
+        scheduler = LearningRateStepSchedulerExtrSeg(optimizer, 
+                                              0.1, 
+                                              args.lr_patience, 
+                                              monitor, 
+                                              save_dir, 
+                                              cont=continue_training)
+    elif args.lr_type == 'cosine':
+        scheduler = CosineAnnealWarmRestart(optimizer, 
+                                            monitor, 
+                                            save_dir, 
+                                            T_0=20, 
+                                            T_mult=1.5, 
+                                            factor = 0.8, 
+                                            min_lr=1e-7, 
+                                            cont=continue_training)
+    elif args.lr_type == 'step':
+        scheduler = StepLR(optimizer,
+                           monitor,
+                           save_dir,
+                           args.lr_patience,
+                           0.1,
+                           cont=continue_training)
+        
+   # scores_train = ClassificationRunningScore(10, save_dir, continue_training, phase='train') #TODO: NEW
+    #scores_val = ClassificationRunningScore(10, save_dir, continue_training, phase='validation') # TODO: NEW
+
+   # best_model_tracker = SaveBestModelExtrusionSeg(config, save_dir, monitor, cont = continue_training) #TODO: NEW
+   # early_stopping = EarlyStoppingExtrusionSeg(config, monitor, save_dir, cont = continue_training) #TODO: NEW
+
+    monitor.log_and_print("### Training starts ###\n")
+    for epoch in range(first_epoch, args.max_epochs):
+        classifier.train()
+        print(f"Epoch {epoch + 1}/{args.max_epochs}", flush=True)
+        epoch_start_time = time.time()
+
+        for i, data in enumerate(train_dataloader):
+            pc = data['pc']
+            sequence = data['sequence']
+            extrusion_id = data['extrusion_id']
+
+            optimizer.zero_grad()
+            pc = pc.transpose(2, 1) # [B, C, N]
+            pc, sequence = pc.to(device), sequence.to(device)
+            output = classifier(pc)
+            if i == 1:
+                break
+        break
+
+     
+    
 if __name__ == '__main__':
     args = parse_args()
     main(args)
