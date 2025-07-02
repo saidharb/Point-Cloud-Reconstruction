@@ -217,3 +217,102 @@ class PCExtrusionSegmentationDataset(BaseDataset):
     
     def __len__(self):
         return len(self.pc)
+    
+class PCExtrusionSequenceDataset():
+    def __init__(self, root, split, verbose=False):
+        self.pc_path = os.path.join(root, "pc_extrusion")
+        self.split_path = os.path.join(root, "train_val_test_split.json")
+        self.verbose = verbose
+        self.split = split
+
+        # Scrutinize if the id's mentioned in the split actually exist as directories
+        valid_dirs = []
+        pc_all = self.read_split()
+        for dir in pc_all:
+            if os.path.isdir(dir):
+                valid_dirs.append(dir)
+        
+        self.pc = []
+        self.labels = []
+        
+        for dir in valid_dirs:
+            pc_paths = glob(os.path.join(dir, "*.ply"))
+            for ply_path in pc_paths:
+                h5_path = ply_path.replace("pc_extrusion", "pc_extrusion_labels").replace(".ply", ".h5")
+        
+                if not os.path.exists(h5_path):
+                    continue
+                try:
+                    with h5py.File(h5_path, "r") as f:
+                        if "sequence" in f and len(f["sequence"]) > 0:
+                            self.pc.append(ply_path)
+                            self.labels.append(h5_path)
+                except Exception as e:
+                    if self.verbose:
+                        print(f"Skipped corrupted or unreadable file: {h5_path} ({e})")
+
+    def __getitem__(self, idx):
+        point_cloud = o3d.io.read_point_cloud(self.pc[idx])
+        point_cloud = np.asarray(point_cloud.points)
+        point_cloud = self.adjust_pointcloud_to_fixed_size(point_cloud, N_POINTS)
+        point_cloud = torch.tensor(point_cloud, dtype = torch.float32) # [N, C]
+
+        with h5py.File(self.labels[idx], "r") as f:
+            extr_id = f['extrusion_id'][()]
+            sequence = f['sequence'][:]
+
+        extr_id = torch.tensor(extr_id, dtype=torch.long)
+        sequence = torch.tensor(sequence, dtype=torch.long)
+        
+        return {'pc': point_cloud,
+               'extrusion_id': extr_id,
+               'sequence': sequence}
+
+    def read_split(self):
+        with open(self.split_path, "r") as fp:
+            all_data = json.load(fp)
+        if self.verbose:
+            print(f"Number of samples that should be in the {self.split} set: {len(all_data[self.split])}", flush=True)
+        pc_set = [os.path.join(self.pc_path, f"{idx}") for idx in all_data[self.split]]
+        return pc_set
+
+    def filter_pc(self, pc_set):
+        pc_set_filtered = [entry for entry in pc_set if entry in self.all_pc_files]
+        corrupt_files = [i for i, entry in enumerate(pc_set) if entry not in self.all_pc_files]
+        if self.verbose:
+            print(f"Files on disk: {len(pc_set_filtered)} --> There are {len(corrupt_files)} missing point cloud files in the {self.split} set.\n", flush=True)
+        return pc_set_filtered, corrupt_files
+
+    def __len__(self):
+        assert len(self.pc) == len(self.labels), "Number of point clouds and labels doesn't match"
+        return len(self.pc)
+
+    def get_pc_path(self, idx):
+        return self.pc[idx] 
+
+    def get_label_path(self, idx):
+        return self.labels[idx]
+
+    def adjust_pointcloud_to_fixed_size(self, points, target_n):
+        """
+        Adjust a point cloud and its labels to a fixed number of points.
+    
+        - If len(points) > target_n: randomly downsample
+        - If len(points) < target_n: randomly upsample with replacement
+    
+        :param points: (N, 3) np.ndarray
+        :param labels: (N,) np.ndarray
+        :param target_n: int, desired number of points
+        :return: (target_n, 3) points, (target_n,) labels
+        """
+        n = points.shape[0]
+    
+        if n == target_n:
+            return points
+        elif n > target_n:
+            idx = np.random.choice(n, target_n, replace=False)
+        else:
+            idx_extra = np.random.choice(n, target_n - n, replace=True)
+            idx = np.concatenate([np.arange(n), idx_extra])
+    
+        return points[idx]
