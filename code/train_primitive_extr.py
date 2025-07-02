@@ -424,8 +424,55 @@ def main(args):
                         'val_avg_arg_acc': scores_val.get_epoch_avg_arg_acc(epoch),
                         'time': epoch_duration})
         
+        # TODO: best_model_tracker.update(scores_val.get_epoch_miou(epoch), epoch, classifier)
+        save_metrics(scheduler.get_lr_history(), 
+                *scores_train.get_metrics_list(), 
+                *scores_val.get_metrics_list(),
+                save_path = save_dir,
+                epoch = epoch)
+        
+        #TODO: if early_stopping.update(scores_val.get_epoch_miou(epoch)):
+         #   break
 
-     
+        print("", flush=True)
+
+    minutes, seconds = divmod(time.time() - start_time, 60)
+    monitor.log_and_print(f"Training time: {int(minutes)}:{int(seconds):02} minutes.\n"
+                          f"--- DONE ---\n")
+
+def save_metrics(*lists, save_path, epoch):
+    lr_history, train_epoch_avg_cmd_acc, train_epoch_avg_param_acc, \
+    train_epoch_cmd_loss, train_epoch_param_loss, train_epoch_per_cmd_acc, \
+    train_epoch_per_param_acc, val_epoch_avg_cmd_acc, val_epoch_avg_param_acc, \
+    val_epoch_cmd_loss, val_epoch_param_loss, val_epoch_per_cmd_acc, \
+    val_epoch_per_param_acc= lists
+
+    epoch = list(range(1, epoch + 2))
+
+    np.savez(os.path.join(save_path, "train_metrics.npz"),
+             epoch_per_cmd_acc_train = np.array(train_epoch_per_cmd_acc),
+             epoch_per_param_acc_train = np.array(train_epoch_per_param_acc))
+    
+    np.savez(os.path.join(save_path, "val_metrics.npz"),
+            epoch_per_cmd_acc_val = np.array(val_epoch_per_cmd_acc),
+            epoch_per_param_acc_val = np.array(val_epoch_per_param_acc))
+    
+    csv_path = os.path.join(save_path, "mean_metrics.csv")
+    with open(csv_path, mode='w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            "epoch", "lr",
+            "train_avg_cmd_acc", "train_avg_param_cc", "train_cmd_loss",
+            "train_param_loss", "val_avg_cmd_acc", "val_avg_param_cc", "val_cmd_loss",
+            "val_param_loss",
+        ])
+
+        for row in zip(epoch, lr_history,
+                        train_epoch_avg_cmd_acc, train_epoch_avg_param_acc, train_epoch_cmd_loss,
+                        train_epoch_param_loss, val_epoch_avg_cmd_acc, val_epoch_avg_param_acc,
+                        val_epoch_cmd_loss, val_epoch_param_loss):
+            writer.writerow(row)
+    
     
 if __name__ == '__main__':
     args = parse_args()

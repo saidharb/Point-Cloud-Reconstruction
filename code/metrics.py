@@ -212,8 +212,26 @@ class PrimitiveExtrusionRunningScore():
         self.epoch_per_cmd_acc = []
         self.epoch_per_param_acc = []
 
-        if cont:
-            pass
+        if cont: 
+            df = pd.read_csv(os.path.join(save_dir, 'mean_metrics.csv'))
+            data_dict = df.to_dict(orient = 'list')
+            if phase == 'train':
+                data = np.load(os.path.join(save_dir, 'train_metrics.npz'))
+                self.epoch_per_cmd_acc = list(data["epoch_per_cmd_acc_train"])
+                self.epoch_per_param_acc = list(data["epoch_per_param_acc_train"])
+                self.epoch_avg_cmd_acc = data_dict["train_avg_cmd_acc"]
+                self.epoch_avg_param_acc = data_dict["train_avg_param_cc"]
+                self.epoch_cmd_loss = data_dict["train_cmd_loss"]
+                self.epoch_param_loss = data_dict["train_param_loss"]
+            if phase == 'validation':
+                data = np.load(os.path.join(save_dir, 'val_metrics.npz'))
+                self.epoch_per_cmd_acc = list(data["epoch_per_cmd_acc_val"])
+                self.epoch_per_param_acc = list(data["epoch_per_param_acc_val"])
+                self.epoch_avg_cmd_acc = data_dict["val_avg_cmd_acc"]
+                self.epoch_avg_param_acc = data_dict["val_avg_param_cc"]
+                self.epoch_cmd_loss = data_dict["val_cmd_loss"]
+                self.epoch_param_loss = data_dict["val_param_loss"]
+                
 
     def update(self, metrics, cmd_loss, param_loss, batch_size):
         self.cmd_total += metrics["each_cmd_cnt"]
@@ -276,3 +294,8 @@ class PrimitiveExtrusionRunningScore():
     
     def get_epoch_avg_arg_acc(self, epoch):
         return self.epoch_avg_param_acc[epoch]
+    
+    def get_metrics_list(self):
+        return self.epoch_avg_cmd_acc, self.epoch_avg_param_acc, \
+        self.epoch_cmd_loss, self.epoch_param_loss, self.epoch_per_cmd_acc, \
+        self.epoch_per_param_acc
