@@ -303,7 +303,7 @@ def main(args):
                            cont=continue_training)
         
     scores_train = PrimitiveExtrusionRunningScore(len(ALL_COMMANDS), N_ARGS, CMD_ARGS_MASK, save_dir, 'train', cont=continue_training)
-    #scores_val = ClassificationRunningScore(10, save_dir, continue_training, phase='validation') # TODO: NEW
+    scores_val = PrimitiveExtrusionRunningScore(len(ALL_COMMANDS), N_ARGS, CMD_ARGS_MASK, save_dir, 'validation', cont=continue_training)
 
    # best_model_tracker = SaveBestModelExtrusionSeg(config, save_dir, monitor, cont = continue_training) #TODO: NEW
    # early_stopping = EarlyStoppingExtrusionSeg(config, monitor, save_dir, cont = continue_training) #TODO: NEW
@@ -331,6 +331,10 @@ def main(args):
             output["tgt_args"] = tgt_args.to(device)
 
             loss_dict = criterion(output)
+            loss = sum(loss_dict.values())
+            loss.backward()
+            optimizer.step()
+
             cmd_loss = loss_dict['loss_cmd'].detach().cpu().item()
             args_loss = loss_dict['loss_args'].detach().cpu().item()
 
@@ -347,17 +351,79 @@ def main(args):
                         f"Commands-Loss: {cmd_loss:8.5f}", 
                         f"Arguments-Loss: {args_loss:8.5f}",
                         flush=True)
-            if i == 10:
+            if i == 2:
                 break
 
         mean_cmd_acc, mean_param_acc = scores_train.get_mean_accuracy()
         avg_cmd_loss, avg_args_loss = scores_train.get_avg_loss()
-        monitor.log_and_print(f"Epoch {epoch}: Avg. Command-Loss: {avg_cmd_loss:8.5f} " 
+        monitor.log_and_print(f"Train Epoch {epoch + 1}: Avg. Command-Loss: {avg_cmd_loss:8.5f} " 
                           f"Avg. Argument-Loss: {avg_args_loss:8.5f} "
                           f"Avg. Command-Accuracy: {mean_cmd_acc:8.5f} "
                           f"Avg. Parameter-Accuracy: {mean_param_acc:8.5f}")
         scores_train.epoch_finished()
-        break
+
+        classifier.eval()
+        with torch.no_grad():
+            for i, data in enumerate(val_dataloader):
+                pc = data['pc']
+                sequence = data['sequence']
+                extrusion_id = data['extrusion_id']
+
+                pc = pc.transpose(2, 1)
+                pc, sequence = pc.to(device), sequence.to(device)
+                output = classifier(pc)
+                tgt_commands = sequence[:, :, 0]
+                tgt_args = sequence[:, :, 1:]
+
+                output["tgt_commands"] = tgt_commands.to(device)
+                output["tgt_args"] = tgt_args.to(device)
+
+                loss_dict = criterion(output)
+
+                cmd_loss = loss_dict['loss_cmd'].detach().cpu().item()
+                args_loss = loss_dict['loss_args'].detach().cpu().item()
+
+                batch_out_vec = logits2vec(output, device)
+
+                metrics = calculate_ACC({"tgt_commands": tgt_commands,
+                                        "tgt_args": tgt_args,
+                                        "pred": batch_out_vec})
+                
+                scores_val.update(metrics, cmd_loss, args_loss, pc.shape[0])
+                if args.verbose:
+                    print(f"Batch {i + 1}/{len(val_dataloader)}: "
+                            f"Commands-Loss: {cmd_loss:8.5f}", 
+                            f"Arguments-Loss: {args_loss:8.5f}",
+                            flush=True)
+                if i == 2:
+                    break
+                mean_cmd_acc, mean_param_acc = scores_val.get_mean_accuracy()
+
+        avg_cmd_loss, avg_args_loss = scores_val.get_avg_loss()
+        monitor.log_and_print(f"Val Epoch {epoch + 1}: Avg. Command-Loss: {avg_cmd_loss:8.5f} " 
+                          f"Avg. Argument-Loss: {avg_args_loss:8.5f} "
+                          f"Avg. Command-Accuracy: {mean_cmd_acc:8.5f} "
+                          f"Avg. Parameter-Accuracy: {mean_param_acc:8.5f}")
+        scores_train.epoch_finished()
+        epoch_duration = (time.time() - epoch_start_time) / 60.0
+
+        current_lr = scheduler.get_current_learning_rate()
+        scheduler.update(avg_cmd_loss + avg_args_loss)
+
+        if args.wandb:
+            if os.getenv("WANDB_API_KEY"):
+                wandb.log({'epochs': epoch, 
+                        'learning_rate': current_lr,
+                        'train_cmd_loss': scores_train.get_epoch_cmd_loss(epoch),
+                        'train_arg_loss': scores_train.get_epoch_arg_loss(epoch),
+                        'train_avg_cmd_acc': scores_train.get_epoch_avg_cmd_acc(epoch),
+                        'train_avg_arg_acc': scores_train.get_epoch_avg_arg_acc(epoch),
+                        'val_cmd_loss': scores_val.get_epoch_cmd_loss(epoch),
+                        'val_arg_loss': scores_val.get_epoch_arg_loss(epoch),
+                        'val_avg_cmd_acc': scores_val.get_epoch_avg_cmd_acc(epoch),
+                        'val_avg_arg_acc': scores_val.get_epoch_avg_arg_acc(epoch),
+                        'time': epoch_duration})
+        
 
      
     
