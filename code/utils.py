@@ -299,9 +299,9 @@ class LearningRateStepSchedulerExtrSeg():
         self.logger = logger
         self.min_lr = 1e-6
         if cont:
-            df = pd.read_csv(os.path.join(save_dir, 'metrics.csv'))
+            df = pd.read_csv(os.path.join(save_dir, 'mean_metrics.csv'))
             data_dict = df.to_dict(orient = 'list')
-            self.lr_history = data_dict['learning_rate']
+            self.lr_history = data_dict['lr']
             self.set_new_learning_rate(historic_lr = self.lr_history[-1])
 
     def get_current_learning_rate(self):

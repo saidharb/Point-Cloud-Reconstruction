@@ -13,11 +13,12 @@ import wandb
 import numpy as np
 
 from code.dataset import PCExtrusionSequenceDataset
-from code.metrics import ClassificationRunningScore
+from code.metrics import PrimitiveExtrusionRunningScore
 from code.utils import EarlyStoppingExtrusionSeg, Logger, SaveBestModelExtrusionSeg, LearningRateStepSchedulerExtrSeg
 from code.LRSchedulers import CosineAnnealWarmRestart, StepLR
 from code.pn2_deepcad import Config
 from models.DeepCAD.trainer.loss import CADLoss
+from models.DeepCAD.cadlib.macro import CMD_ARGS_MASK, ALL_COMMANDS, EOS_IDX, SOL_IDX, EXT_IDX, ARC_IDX, N_ARGS
 
 def parse_args():
     '''PARAMETERS'''
@@ -53,6 +54,93 @@ def inplace_relu(m):
     classname = m.__class__.__name__
     if classname.find('ReLU') != -1:
         m.inplace=True
+
+def logits2vec(outputs, device, refill_pad=True, to_numpy=True):
+    """network outputs (logits) to final CAD vector"""
+    out_command = torch.argmax(torch.softmax(outputs['command_logits'], dim=-1), dim=-1)  # (N, S)
+    out_args = torch.argmax(torch.softmax(outputs['args_logits'], dim=-1), dim=-1) - 1  # (N, S, N_ARGS)
+    if refill_pad: # fill all unused element to -1
+        mask = ~torch.tensor(CMD_ARGS_MASK).bool().to(device)[out_command.long()]
+        out_args[mask] = -1
+
+    out_cad_vec = torch.cat([out_command.unsqueeze(-1), out_args], dim=-1)
+    if to_numpy:
+        out_cad_vec = out_cad_vec.detach().cpu().numpy()
+    return out_cad_vec
+
+def calculate_ACC(results):
+
+    TOLERANCE = 3
+
+    # overall accuracy
+    avg_cmd_acc = [] # ACC_cmd
+    avg_param_acc = [] # ACC_param
+    
+    # accuracy w.r.t. each command type
+    each_cmd_cnt = np.zeros((len(ALL_COMMANDS),))
+    each_cmd_acc = np.zeros((len(ALL_COMMANDS),))
+
+    # accuracy w.r.t each parameter
+    args_mask = CMD_ARGS_MASK.astype(np.float32)
+    N_ARGS = args_mask.shape[1]
+    each_param_cnt = np.zeros([*args_mask.shape])
+    each_param_acc = np.zeros([*args_mask.shape])
+
+    B = results["tgt_commands"].shape[0]
+
+    for i in range(B): # for each sample in the batch
+        seq_length = list(results["tgt_commands"][i]).index(EOS_IDX)
+        out_cmd = results["pred"][i,:seq_length,0]
+        gt_cmd = results["tgt_commands"][i, :seq_length].numpy()
+    
+        out_param = results["pred"][i,:seq_length,1:]
+        gt_param = results["tgt_args"][i, :seq_length].numpy()
+
+        cmd_acc = (out_cmd == gt_cmd).astype(np.int32)
+        param_acc = []
+              
+        for j in range(len(gt_cmd)):
+            cmd = gt_cmd[j]
+            each_cmd_cnt[cmd] += 1
+            each_cmd_acc[cmd] += cmd_acc[j]
+            if cmd in [SOL_IDX, EOS_IDX]:
+                continue
+        
+            if out_cmd[j] == gt_cmd[j]: # NOTE: only account param acc for correct cmd
+                tole_acc = (np.abs(out_param[j] - gt_param[j]) < TOLERANCE).astype(np.int32)
+                
+                # filter param that do not need tolerance (i.e. requires strictly equal)
+                if cmd == EXT_IDX:
+                    tole_acc[-2:] = (out_param[j] == gt_param[j]).astype(np.int32)[-2:]
+                elif cmd == ARC_IDX:
+                    tole_acc[3] = (out_param[j] == gt_param[j]).astype(np.int32)[3]
+
+                valid_param_acc = tole_acc[args_mask[cmd].astype(bool)].tolist()
+                param_acc.extend(valid_param_acc)
+                each_param_cnt[cmd, np.arange(N_ARGS)] += 1
+                each_param_acc[cmd, np.arange(N_ARGS)] += tole_acc
+
+        if len(param_acc) == 0: # No cmd was correct, therefore no param is recorded
+            param_acc = 0       # Therefore the param accuarcy for this sample is 0
+        else:
+            param_acc = np.mean(param_acc)
+        
+        avg_param_acc.append(param_acc)
+        cmd_acc = np.mean(cmd_acc)
+        avg_cmd_acc.append(cmd_acc)
+
+    # acc of each command type
+    each_cmd_acc = each_cmd_acc / (each_cmd_cnt + 1e-6)
+
+    # acc of each parameter type
+    each_param_acc = each_param_acc * args_mask
+    each_param_cnt = each_param_cnt * args_mask
+    each_param_acc = each_param_acc / (each_param_cnt + 1e-6)
+
+    return {"each_cmd_acc": each_cmd_acc, 
+            "each_cmd_cnt": each_cmd_cnt,
+            "each_param_acc": each_param_acc,
+            "each_param_cnt": each_param_cnt}
 
 
 def main(args):
@@ -214,18 +302,18 @@ def main(args):
                            0.1,
                            cont=continue_training)
         
-   # scores_train = ClassificationRunningScore(10, save_dir, continue_training, phase='train') #TODO: NEW
+    scores_train = PrimitiveExtrusionRunningScore(len(ALL_COMMANDS), N_ARGS, CMD_ARGS_MASK, save_dir, 'train', cont=continue_training)
     #scores_val = ClassificationRunningScore(10, save_dir, continue_training, phase='validation') # TODO: NEW
 
    # best_model_tracker = SaveBestModelExtrusionSeg(config, save_dir, monitor, cont = continue_training) #TODO: NEW
    # early_stopping = EarlyStoppingExtrusionSeg(config, monitor, save_dir, cont = continue_training) #TODO: NEW
 
     monitor.log_and_print("### Training starts ###\n")
+    
     for epoch in range(first_epoch, args.max_epochs):
         classifier.train()
         print(f"Epoch {epoch + 1}/{args.max_epochs}", flush=True)
         epoch_start_time = time.time()
-
         for i, data in enumerate(train_dataloader):
             pc = data['pc']
             sequence = data['sequence']
@@ -235,8 +323,40 @@ def main(args):
             pc = pc.transpose(2, 1) # [B, C, N]
             pc, sequence = pc.to(device), sequence.to(device)
             output = classifier(pc)
-            if i == 1:
+
+            tgt_commands = sequence[:, :, 0]
+            tgt_args = sequence[:, :, 1:]
+
+            output["tgt_commands"] = tgt_commands.to(device)
+            output["tgt_args"] = tgt_args.to(device)
+
+            loss_dict = criterion(output)
+            cmd_loss = loss_dict['loss_cmd'].detach().cpu().item()
+            args_loss = loss_dict['loss_args'].detach().cpu().item()
+
+            batch_out_vec = logits2vec(output, device)
+
+            metrics = calculate_ACC({"tgt_commands": tgt_commands,
+                                     "tgt_args": tgt_args,
+                                     "pred": batch_out_vec})
+            
+            scores_train.update(metrics, cmd_loss, args_loss, pc.shape[0])
+
+            if args.verbose:
+                print(f"Batch {i + 1}/{len(train_dataloader)}: "
+                        f"Commands-Loss: {cmd_loss:8.5f}", 
+                        f"Arguments-Loss: {args_loss:8.5f}",
+                        flush=True)
+            if i == 10:
                 break
+
+        mean_cmd_acc, mean_param_acc = scores_train.get_mean_accuracy()
+        avg_cmd_loss, avg_args_loss = scores_train.get_avg_loss()
+        monitor.log_and_print(f"Epoch {epoch}: Avg. Command-Loss: {avg_cmd_loss:8.5f} " 
+                          f"Avg. Argument-Loss: {avg_args_loss:8.5f} "
+                          f"Avg. Command-Accuracy: {mean_cmd_acc:8.5f} "
+                          f"Avg. Parameter-Accuracy: {mean_param_acc:8.5f}")
+        scores_train.epoch_finished()
         break
 
      
