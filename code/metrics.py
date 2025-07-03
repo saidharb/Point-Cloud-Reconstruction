@@ -188,23 +188,22 @@ class ClassificationRunningScore():
         return self.loss_epoch_list[epoch]
 
 class PrimitiveExtrusionRunningScore():
-    def __init__(self, num_cmds, num_args, args_mask, save_dir, phase, cont=False):
+    def __init__(self, num_cmds, num_args, save_dir, phase, cont=False):
         self.save_dir = save_dir
 
-        self.cmd_total = np.zeros((num_cmds,))
-        self.cmd_correct = np.zeros((num_cmds,))
+        self.cmd_count = np.zeros((num_cmds,))  # For each command how many times did it appear
+        self.cmd_correct = np.zeros((num_cmds,)) # For each command how many times was it predicted correctly
         
-        self.param_total = np.zeros((num_cmds, num_args))
-        self.param_correct = np.zeros((num_cmds, num_args))
-        self.args_mask = args_mask.astype(np.float32)
-
-        self.epoch_avg_cmd_acc = []
-        self.epoch_avg_param_acc = []
+        self.param_count = np.zeros((num_cmds, num_args)) # For each param how many times did it appear
+        self.param_correct = np.zeros((num_cmds, num_args)) # For each param how many times was it predicted correctly
 
         self.running_cmd_loss = 0.0
         self.running_param_loss = 0.0
 
         self.total_samples = 0
+
+        self.epoch_avg_cmd_acc = []
+        self.epoch_avg_param_acc = []
 
         self.epoch_cmd_loss = []
         self.epoch_param_loss = []
@@ -233,55 +232,55 @@ class PrimitiveExtrusionRunningScore():
                 self.epoch_param_loss = data_dict["val_param_loss"]
                 
 
-    def update(self, metrics, cmd_loss, param_loss, batch_size):
-        self.cmd_total += metrics["each_cmd_cnt"]
-        self.cmd_correct += metrics["each_cmd_acc"] * metrics["each_cmd_cnt"]
+    def update(self, metrics, cmd_loss, param_loss, batch_size): # DONE
+        self.cmd_count += metrics['each_cmd_cnt']
+        self.cmd_correct += metrics['each_cmd_acc']
 
-        self.param_total += metrics["each_param_cnt"]
-        self.param_correct += metrics["each_param_acc"] * metrics["each_param_cnt"]
+        self.param_count += metrics['each_param_cnt']
+        self.param_correct += metrics['each_param_acc']
 
         self.running_cmd_loss += cmd_loss
         self.running_param_loss += param_loss
 
         self.total_samples += batch_size
 
-    def get_accuracy(self):
-        each_cmd_acc = self.cmd_correct / (self.cmd_total + 1e-6)
-        each_param_acc = (self.param_correct / (self.param_total + 1e-6)) * self.args_mask
+    def get_accuracy(self): 
+        each_cmd_acc = self.cmd_correct / (self.cmd_count + 1e-6)
+        each_param_acc = self.param_correct / (self.param_count + 1e-6)
         return each_cmd_acc, each_param_acc
     
-    def get_mean_accuracy(self):
-        each_cmd_acc, each_param_acc = self.get_accuracy()
-        avg_cmd_acc = np.mean(each_cmd_acc)
-        avg_param_acc = np.mean(each_param_acc) / (np.sum(self.args_mask) + 1e-6)
-        return avg_cmd_acc, avg_param_acc
+    def get_mean_accuracy(self): 
+        mean_cmd_acc = np.sum(self.cmd_correct) / (np.sum(self.cmd_count) + 1e-6)
+        mean_param_acc = np.sum(self.param_correct) / (np.sum(self.param_count) + 1e-6)
+        return mean_cmd_acc, mean_param_acc
     
     def get_avg_loss(self):
         avg_cmd_loss = self.running_cmd_loss / self.total_samples
         avg_param_loss = self.running_param_loss / self.total_samples
         return avg_cmd_loss, avg_param_loss
     
-    def reset(self):
-        self.cmd_total.fill(0)
+    def reset(self): 
+        self.cmd_count.fill(0)
         self.cmd_correct.fill(0)
-        self.param_total.fill(0)
+        self.param_count.fill(0)
         self.param_correct.fill(0)
         self.running_cmd_loss = 0.0
         self.running_param_loss = 0.0
         self.total_samples = 0
 
-    def epoch_finished(self):
-        avg_cmd_acc, avg_param_acc = self.get_mean_accuracy()
-        self.epoch_avg_cmd_acc.append(avg_cmd_acc)
-        self.epoch_avg_param_acc.append(avg_param_acc)
+    def epoch_finished(self): 
+        mean_cmd_acc, mean_param_acc = self.get_mean_accuracy()
+        self.epoch_avg_cmd_acc.append(mean_cmd_acc)
+        self.epoch_avg_param_acc.append(mean_param_acc)
 
         avg_cmd_loss, avg_param_loss = self.get_avg_loss()
         self.epoch_cmd_loss.append(avg_cmd_loss)
-        self.epoch_param_loss.append(avg_param_loss)
+        self.epoch_param_loss.append(avg_param_loss)        
 
         each_cmd_acc, each_param_acc = self.get_accuracy()
         self.epoch_per_cmd_acc.append(each_cmd_acc)
         self.epoch_per_param_acc.append(each_param_acc)
+        
         self.reset()
 
     def get_epoch_cmd_loss(self, epoch):
