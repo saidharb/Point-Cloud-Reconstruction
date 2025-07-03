@@ -511,7 +511,7 @@ class LearningRateStepSchedulerPrimitiveExtrusion():
 
         if self.running_patience == 0:
             if self.get_current_learning_rate() * self.factor > self.min_lr:
-                self.logger.log_and_print(f"No increase in val mIous since {self.patience} epochs.\n"
+                self.logger.log_and_print(f"No increase in val score since {self.patience} epochs.\n"
                             f"Reducing learning rate from {self.get_current_learning_rate()} to "
                             f"{self.get_current_learning_rate() * self.factor}.")
                 self.set_new_learning_rate()
