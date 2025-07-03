@@ -148,6 +148,80 @@ class SaveBestModelExtrusionSeg():
 
         self.current_epoch += 1
 
+class SaveBestModelPrimitiveExtrusion():
+    """based on mean command or parameter accuracy"""
+
+    def __init__(self, config, save_dir, logger, cont = False):
+        self.best_score = 0.0
+
+        self.save_dir = save_dir
+        self.best_model_path = os.path.join(self.save_dir, "best.pth")
+        self.current_epoch = 0
+        self.best_epoch = 0
+        self.config = config
+        self.logger = logger
+        self.save_interval = config['save_interval']
+        self.start_time = time.time()
+
+        # Load previous metrics if continuing training
+        if cont:
+            df = pd.read_csv(os.path.join(save_dir, 'mean_metrics.csv'))
+            data_dict = df.to_dict(orient = 'list')
+            avg_cmd_acc = data_dict['val_avg_cmd_acc']
+            avg_param_acc = data_dict['val_avg_param_cc']
+            weighted_sum = [0.5 * a + 0.5 * b for a, b in zip(avg_cmd_acc, avg_param_acc)]
+            self.best_score = max(weighted_sum)
+            self.current_epoch = len(weighted_sum)
+            self.best_epoch = self.best_score.index(max(weighted_sum))
+            self.start_time = time.time() - config['training_time_min'] * 60.0
+
+    def create_checkpoint(self, model):
+        if isinstance(model, nn.DataParallel):
+            checkpoint = {
+                'model_state_dict': model.module.state_dict(),
+                'config': self.config
+            }
+        else:
+            checkpoint = {
+                'model_state_dict': model.state_dict(),
+                'config': self.config
+            }     
+        return checkpoint 
+
+    def update(self, mean_cmd_acc, mean_param_acc, epoch, model):
+        new_score = 0.5 * mean_cmd_acc + 0.5 * mean_param_acc
+        checkpoint_bool = (self.current_epoch + 1) % self.save_interval == 0 and not new_score > self.best_score
+        if checkpoint_bool:
+            checkpoint_path = os.path.abspath(os.path.join(self.save_dir, f'ckpt_{self.current_epoch + 1}.pth'))
+            self.logger.log_and_print(f"Epoch {epoch}: Saving checkpoint model every {self.save_interval} epochs to: "
+                                      f"{checkpoint_path}")
+            self.config['final_epoch'] = self.current_epoch + 1
+            self.config['training_time_min'] = round((time.time() - self.start_time) / 60.0, 2)
+            checkpoint = self.create_checkpoint(model)
+            torch.save(checkpoint, checkpoint_path)
+
+        
+        best_model_bool = new_score > self.best_score
+        if best_model_bool:
+            self.logger.log_and_print(f"New best model found with avg val cmd acc: {mean_cmd_acc:.8f}, avg val param acc {mean_param_acc:.8f}--- "
+                                      f"Improvement to previous best in epoch"
+                                      f" {self.best_epoch + 1}: {(new_score - self.best_score):.8f}")
+            self.best_score = new_score
+            self.best_epoch = epoch
+            self.logger.log_and_print(f"Epoch {epoch}: Saving model to: {os.path.abspath(self.best_model_path)}")
+            self.config['final_epoch'] = self.current_epoch + 1
+            self.config['training_time_min'] = round((time.time() - self.start_time) / 60.0, 2)
+            checkpoint = self.create_checkpoint(model)
+            torch.save(checkpoint, self.best_model_path)
+
+        last_path = os.path.abspath(os.path.join(self.save_dir, f'last.pth'))
+        self.config['final_epoch'] = self.current_epoch + 1
+        self.config['training_time_min'] = round((time.time() - self.start_time) / 60.0, 2)
+        checkpoint = self.create_checkpoint(model)
+        torch.save(checkpoint, last_path)
+
+        self.current_epoch += 1
+
 class EarlyStopping():
 
     def __init__(self, config, logger, save_dir, cont = False):

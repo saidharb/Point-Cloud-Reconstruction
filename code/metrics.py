@@ -268,6 +268,7 @@ class PrimitiveExtrusionRunningScore():
         self.param_correct.fill(0)
         self.running_cmd_loss = 0.0
         self.running_param_loss = 0.0
+        self.total_samples = 0
 
     def epoch_finished(self):
         avg_cmd_acc, avg_param_acc = self.get_mean_accuracy()

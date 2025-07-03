@@ -14,7 +14,7 @@ import numpy as np
 
 from code.dataset import PCExtrusionSequenceDataset
 from code.metrics import PrimitiveExtrusionRunningScore
-from code.utils import EarlyStoppingExtrusionSeg, Logger, SaveBestModelExtrusionSeg, LearningRateStepSchedulerExtrSeg
+from code.utils import EarlyStoppingExtrusionSeg, Logger, SaveBestModelPrimitiveExtrusion, LearningRateStepSchedulerExtrSeg
 from code.LRSchedulers import CosineAnnealWarmRestart, StepLR
 from code.pn2_deepcad import Config
 from models.DeepCAD.trainer.loss import CADLoss
@@ -305,7 +305,7 @@ def main(args):
     scores_train = PrimitiveExtrusionRunningScore(len(ALL_COMMANDS), N_ARGS, CMD_ARGS_MASK, save_dir, 'train', cont=continue_training)
     scores_val = PrimitiveExtrusionRunningScore(len(ALL_COMMANDS), N_ARGS, CMD_ARGS_MASK, save_dir, 'validation', cont=continue_training)
 
-   # best_model_tracker = SaveBestModelExtrusionSeg(config, save_dir, monitor, cont = continue_training) #TODO: NEW
+    best_model_tracker = SaveBestModelPrimitiveExtrusion(config, save_dir, monitor, cont = continue_training)
    # early_stopping = EarlyStoppingExtrusionSeg(config, monitor, save_dir, cont = continue_training) #TODO: NEW
 
     monitor.log_and_print("### Training starts ###\n")
@@ -404,7 +404,7 @@ def main(args):
                           f"Avg. Argument-Loss: {avg_args_loss:8.5f} "
                           f"Avg. Command-Accuracy: {mean_cmd_acc:8.5f} "
                           f"Avg. Parameter-Accuracy: {mean_param_acc:8.5f}")
-        scores_train.epoch_finished()
+        scores_val.epoch_finished()
         epoch_duration = (time.time() - epoch_start_time) / 60.0
 
         current_lr = scheduler.get_current_learning_rate()
@@ -424,7 +424,7 @@ def main(args):
                         'val_avg_arg_acc': scores_val.get_epoch_avg_arg_acc(epoch),
                         'time': epoch_duration})
         
-        # TODO: best_model_tracker.update(scores_val.get_epoch_miou(epoch), epoch, classifier)
+        best_model_tracker.update(scores_val.get_epoch_avg_cmd_acc(epoch), scores_val.get_epoch_avg_arg_acc(epoch), epoch, classifier)
         save_metrics(scheduler.get_lr_history(), 
                 *scores_train.get_metrics_list(), 
                 *scores_val.get_metrics_list(),
