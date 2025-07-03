@@ -397,8 +397,8 @@ def main(args):
                             flush=True)
                 if i == 2:
                     break
-                mean_cmd_acc, mean_param_acc = scores_val.get_mean_accuracy()
-
+                
+        mean_cmd_acc, mean_param_acc = scores_val.get_mean_accuracy()
         avg_cmd_loss, avg_args_loss = scores_val.get_avg_loss()
         monitor.log_and_print(f"Val Epoch {epoch + 1}: Avg. Command-Loss: {avg_cmd_loss:8.5f} " 
                           f"Avg. Argument-Loss: {avg_args_loss:8.5f} "
