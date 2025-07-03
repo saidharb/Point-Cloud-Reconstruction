@@ -267,7 +267,7 @@ class EarlyStoppingExtrusionSeg():
             df = pd.read_csv(os.path.join(save_dir, 'mean_metrics.csv'))
             data_dict = df.to_dict(orient = 'list')
             self.epoch = len(data_dict['epoch'])
-            self.best_loss = max(data_dict['val_mIoU'])
+            self.best_miou = max(data_dict['val_mIoU'])
             self.best_epoch = data_dict['val_mIoU'].index(max(data_dict['val_mIoU']))
             self.running_epoch = self.epoch - self.best_epoch
 
@@ -282,7 +282,46 @@ class EarlyStoppingExtrusionSeg():
         self.epoch += 1
         if self.running_epoch == self.max_epochs:
             self.logger.log_and_print(f"Epoch {self.epoch}: Early stopping: Validation mIoU did not increase for {self.max_epochs} epochs "
-                                      f"from {self.best_loss:.8f} since epoch {self.best_epoch + 1}.")
+                                      f"from {self.best_miou:.8f} since epoch {self.best_epoch + 1}.")
+            return True
+        return False
+    
+    
+class EarlyStoppingPrimitiveExtrusion():
+
+    def __init__(self, config, logger, save_dir, cont = False):
+        self.max_epochs = config['early_stopping']
+        self.running_epoch = 0
+        self.epoch = 0
+
+        self.best_score = 0.0
+
+        self.best_epoch = 0
+        self.logger = logger
+
+        if cont:
+            df = pd.read_csv(os.path.join(save_dir, 'mean_metrics.csv'))
+            data_dict = df.to_dict(orient = 'list')
+            avg_cmd_acc = data_dict['val_avg_cmd_acc']
+            avg_param_acc = data_dict['val_avg_param_cc']
+            weighted_sum = [0.5 * a + 0.5 * b for a, b in zip(avg_cmd_acc, avg_param_acc)]
+            self.best_score = max(weighted_sum)
+            self.best_epoch = self.best_score.index(max(weighted_sum))
+
+
+
+    def update(self, mean_cmd_acc, mean_param_acc):
+        new_score = 0.5 * mean_cmd_acc + 0.5 * mean_param_acc
+        if new_score > self.best_score:
+            self.best_epoch = self.epoch
+            self.running_epoch = 0
+            self.best_score = new_score
+        else:
+            self.running_epoch += 1
+        self.epoch += 1
+        if self.running_epoch == self.max_epochs:
+            self.logger.log_and_print(f"Epoch {self.epoch}: Early stopping: Validation score did not increase for {self.max_epochs} epochs "
+                                      f"from {self.best_score:.8f} since epoch {self.best_epoch + 1}.")
             return True
         return False
     

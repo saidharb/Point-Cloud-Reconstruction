@@ -14,7 +14,7 @@ import numpy as np
 
 from code.dataset import PCExtrusionSequenceDataset
 from code.metrics import PrimitiveExtrusionRunningScore
-from code.utils import EarlyStoppingExtrusionSeg, Logger, SaveBestModelPrimitiveExtrusion, LearningRateStepSchedulerExtrSeg
+from code.utils import EarlyStoppingPrimitiveExtrusion, Logger, SaveBestModelPrimitiveExtrusion, LearningRateStepSchedulerExtrSeg
 from code.LRSchedulers import CosineAnnealWarmRestart, StepLR
 from code.pn2_deepcad import Config
 from models.DeepCAD.trainer.loss import CADLoss
@@ -306,7 +306,7 @@ def main(args):
     scores_val = PrimitiveExtrusionRunningScore(len(ALL_COMMANDS), N_ARGS, CMD_ARGS_MASK, save_dir, 'validation', cont=continue_training)
 
     best_model_tracker = SaveBestModelPrimitiveExtrusion(config, save_dir, monitor, cont = continue_training)
-   # early_stopping = EarlyStoppingExtrusionSeg(config, monitor, save_dir, cont = continue_training) #TODO: NEW
+    early_stopping = EarlyStoppingPrimitiveExtrusion(config, monitor, save_dir, cont = continue_training)
 
     monitor.log_and_print("### Training starts ###\n")
     
@@ -431,8 +431,8 @@ def main(args):
                 save_path = save_dir,
                 epoch = epoch)
         
-        #TODO: if early_stopping.update(scores_val.get_epoch_miou(epoch)):
-         #   break
+        if early_stopping.update(scores_val.get_epoch_avg_cmd_acc(epoch), scores_val.get_epoch_avg_arg_acc(epoch)):
+            break
 
         print("", flush=True)
 
