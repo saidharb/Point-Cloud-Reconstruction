@@ -14,7 +14,7 @@ import numpy as np
 
 from code.dataset import PCExtrusionSequenceDataset
 from code.metrics import PrimitiveExtrusionRunningScore
-from code.utils import EarlyStoppingPrimitiveExtrusion, Logger, SaveBestModelPrimitiveExtrusion, LearningRateStepSchedulerExtrSeg
+from code.utils import EarlyStoppingPrimitiveExtrusion, Logger, SaveBestModelPrimitiveExtrusion, LearningRateStepSchedulerPrimitiveExtrusion
 from code.LRSchedulers import CosineAnnealWarmRestart, StepLR
 from code.pn2_deepcad import Config
 from models.DeepCAD.trainer.loss import CADLoss
@@ -278,8 +278,8 @@ def main(args):
         weight_decay=1e-4
         )
     
-    if args.lr_type == 'step_adv': # TODO: BASED ON WHICH METRIC?
-        scheduler = LearningRateStepSchedulerExtrSeg(optimizer, 
+    if args.lr_type == 'step_adv': 
+        scheduler = LearningRateStepSchedulerPrimitiveExtrusion(optimizer, 
                                               0.1, 
                                               args.lr_patience, 
                                               monitor, 
@@ -408,7 +408,7 @@ def main(args):
         epoch_duration = (time.time() - epoch_start_time) / 60.0
 
         current_lr = scheduler.get_current_learning_rate()
-        scheduler.update(avg_cmd_loss + avg_args_loss)
+        scheduler.update(scores_val.get_epoch_avg_cmd_acc(epoch), scores_val.get_epoch_avg_arg_acc(epoch))
 
         if args.wandb:
             if os.getenv("WANDB_API_KEY"):
