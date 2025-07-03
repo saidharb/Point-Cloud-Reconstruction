@@ -172,7 +172,7 @@ class SaveBestModelPrimitiveExtrusion():
             weighted_sum = [0.5 * a + 0.5 * b for a, b in zip(avg_cmd_acc, avg_param_acc)]
             self.best_score = max(weighted_sum)
             self.current_epoch = len(weighted_sum)
-            self.best_epoch = self.best_score.index(max(weighted_sum))
+            self.best_epoch = weighted_sum.index(max(weighted_sum))
             self.start_time = time.time() - config['training_time_min'] * 60.0
 
     def create_checkpoint(self, model):
@@ -306,7 +306,7 @@ class EarlyStoppingPrimitiveExtrusion():
             avg_param_acc = data_dict['val_avg_param_cc']
             weighted_sum = [0.5 * a + 0.5 * b for a, b in zip(avg_cmd_acc, avg_param_acc)]
             self.best_score = max(weighted_sum)
-            self.best_epoch = self.best_score.index(max(weighted_sum))
+            self.best_epoch = weighted_sum.index(max(weighted_sum))
 
 
 
