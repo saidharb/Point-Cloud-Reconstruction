@@ -287,7 +287,7 @@ class PrimitiveExtrusionRunningScore():
         return self.epoch_cmd_loss[epoch]
     
     def get_epoch_arg_loss(self, epoch):
-        return self.epoch_arg_loss[epoch]
+        return self.epoch_param_loss[epoch]
     
     def get_epoch_avg_cmd_acc(self, epoch):
         return self.epoch_avg_cmd_acc[epoch]
