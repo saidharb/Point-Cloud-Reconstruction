@@ -334,8 +334,8 @@ def main(args):
                         f"Commands-Loss: {cmd_loss:8.5f}", 
                         f"Arguments-Loss: {args_loss:8.5f}",
                         flush=True)
-            if i == 10:
-                break
+          #  if i == 3:
+           #     break
 
         mean_cmd_acc, mean_param_acc = scores_train.get_mean_accuracy()
         avg_cmd_loss, avg_args_loss = scores_train.get_avg_loss()
@@ -378,8 +378,8 @@ def main(args):
                             f"Commands-Loss: {cmd_loss:8.5f}", 
                             f"Arguments-Loss: {args_loss:8.5f}",
                             flush=True)
-                if i == 10:
-                    break
+         #       if i == 3:
+          #          break
 
         mean_cmd_acc, mean_param_acc = scores_val.get_mean_accuracy()
         avg_cmd_loss, avg_args_loss = scores_val.get_avg_loss()

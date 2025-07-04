@@ -38,7 +38,7 @@ pointnet_venv/
 src/
 
 # Cluster files
-**/*.job
+# **/*.job
 **/*.err
 **/*.out
 
