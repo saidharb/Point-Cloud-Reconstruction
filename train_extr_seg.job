@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-#SBATCH --partition=gpu03_queue
+#SBATCH --partition=gpu02_queue
 #SBATCH --nodes=1
 #SBATCH --time=7-00:00:00
 #SBATCH --job-name=extr
