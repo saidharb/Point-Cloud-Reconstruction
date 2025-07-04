@@ -323,9 +323,9 @@ def main(args):
 
             batch_out_vec = logits2vec(output, device)
 
-            metrics = calculate_ACC({"tgt_commands": tgt_commands,
-                                     "tgt_args": tgt_args,
-                                     "pred": batch_out_vec})
+            metrics = calculate_ACC({"tgt_commands": tgt_commands.cpu(),
+                                     "tgt_args": tgt_args.cpu(),
+                                     "pred": batch_out_vec.cpu()})
             
             scores_train.update(metrics, cmd_loss, args_loss, pc.shape[0])
 
