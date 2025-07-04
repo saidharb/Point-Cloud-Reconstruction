@@ -7,6 +7,7 @@
 #SBATCH --exclusive
 #SBATCH --output=msg%x.%j.out
 #SBATCH --error=msg%x.%j.err
+#SBATCH --exclude=gpu07
 
 cd /work/y0110479/Master-Thesis/Point-Cloud-Reconstruction
 export PYTHONPATH=$(pwd):$PYTHONPATH
