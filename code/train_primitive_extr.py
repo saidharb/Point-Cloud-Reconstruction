@@ -325,7 +325,7 @@ def main(args):
 
             metrics = calculate_ACC({"tgt_commands": tgt_commands.cpu(),
                                      "tgt_args": tgt_args.cpu(),
-                                     "pred": batch_out_vec.cpu()})
+                                     "pred": batch_out_vec}) # already np.array
             
             scores_train.update(metrics, cmd_loss, args_loss, pc.shape[0])
 
@@ -370,7 +370,7 @@ def main(args):
 
                 metrics = calculate_ACC({"tgt_commands": tgt_commands.cpu(),
                                         "tgt_args": tgt_args.cpu(),
-                                        "pred": batch_out_vec.cpu()})
+                                        "pred": batch_out_vec})
                 
                 scores_val.update(metrics, cmd_loss, args_loss, pc.shape[0])
                 if args.verbose:
