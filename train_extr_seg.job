@@ -1,0 +1,21 @@
+#!/bin/bash -l
+
+#SBATCH --partition=gpu03_queue
+#SBATCH --nodes=1
+#SBATCH --time=7-00:00:00
+#SBATCH --job-name=extr
+#SBATCH --exclusive
+#SBATCH --output=msg%x.%j.out
+#SBATCH --error=msg%x.%j.err
+
+cd /work/y0110479/Master-Thesis/Point-Cloud-Reconstruction
+export PYTHONPATH=$(pwd):$PYTHONPATH
+export WANDB_API_KEY=22efc7f5b70c0a0812fb73908cb58c659dfd8239
+
+# to check GPUs
+nvidia-smi
+
+conda activate pointnet_venv
+python --version
+python -c "import torch, os; print(f'CUDA Available: {torch.cuda.is_available()}'); print(f'Device Count: {torch.cuda.device_count()}'); print(f'CUDA Version: {torch.version.cuda}'); print(f'CUDNN Enabled: {torch.backends.cudnn.enabled}'); print(f'torch: {torch.__version__}')"
+python code/train_pn2_ext_seg.py --batch_size 48 --max_epochs 1000 --save_interval 50  --verbose --lr_patience 30 --output_dir "partseg_run" --lr_type "step_adv" --early_stopping 50 --learning_rate 0.0001 --gpu --wandb --name "partseg_miou_run" 
