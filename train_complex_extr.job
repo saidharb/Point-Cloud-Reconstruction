@@ -3,7 +3,7 @@
 #SBATCH --partition=gpu02_queue
 #SBATCH --nodes=1
 #SBATCH --time=7-00:00:00
-#SBATCH --job-name=prim
+#SBATCH --job-name=comp
 #SBATCH --exclusive
 #SBATCH --output=msg%x.%j.out
 #SBATCH --error=msg%x.%j.err
