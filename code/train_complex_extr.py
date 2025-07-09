@@ -300,7 +300,7 @@ def main(args):
         for i, data in enumerate(train_dataloader):
             pc = data['pc']
             sequence = data['tgt_vec']
-            print(pc.shape)
+            
             optimizer.zero_grad()
             pc = pc.transpose(2, 1) # [B, C, N]
             pc, sequence = pc.to(device), sequence.to(device)
