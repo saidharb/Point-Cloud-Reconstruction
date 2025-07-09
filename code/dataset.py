@@ -167,7 +167,7 @@ class PointCloudEmbeddingSequenceDataset(BaseDataset):
         else:
             point_cloud = torch.tensor(np.asarray(point_cloud.points), dtype = torch.float32) # [N, C]
         sample_idx = random.sample(list(range(point_cloud.shape[0])), N_POINTS)
-        # point_cloud = point_cloud[sample_idx] # IGNORE_INDICES
+        point_cloud = point_cloud[sample_idx] # IGNORE_INDICES
         latent_rep = torch.tensor(self.latent[idx], dtype = torch.float32) # [B, D]
         
         with h5py.File(self.cad_seq[idx], 'r') as fp:
@@ -175,7 +175,6 @@ class PointCloudEmbeddingSequenceDataset(BaseDataset):
         pad_len = MAX_TOTAL_LEN - cad_vec.shape[0]   
         cad_vec = np.concatenate([cad_vec, EOS_VEC[np.newaxis].repeat(pad_len, axis=0)], axis=0)
         cad_vec = torch.tensor(cad_vec, dtype=torch.long)
-        #cad_seq =  #torch.tensor(self.cad_seq[idx], dtype=torch.int64)
         id = self.get_id(idx)
         data = {"pc": point_cloud,
                 "z": latent_rep,
