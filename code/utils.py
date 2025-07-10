@@ -46,7 +46,7 @@ class SaveBestModel():
 
     def update(self, val_loss, epoch, model):
         
-        checkpoint_bool = (self.current_epoch + 1) %self.save_interval == 0 and not val_loss < self.best_val_loss
+        checkpoint_bool = (self.current_epoch + 1) %self.save_interval == 0 
         if checkpoint_bool:
             checkpoint_path = os.path.abspath(os.path.join(self.save_dir, f'ckpt_{self.current_epoch + 1}.pth'))
             self.logger.log_and_print(f"Saving checkpoint model every {self.save_interval} epochs to: "
@@ -116,7 +116,7 @@ class SaveBestModelExtrusionSeg():
 
     def update(self, metric, epoch, model):
         
-        checkpoint_bool = (self.current_epoch + 1) % self.save_interval == 0 and not metric > self.best_miou
+        checkpoint_bool = (self.current_epoch + 1) % self.save_interval == 0
         if checkpoint_bool:
             checkpoint_path = os.path.abspath(os.path.join(self.save_dir, f'ckpt_{self.current_epoch + 1}.pth'))
             self.logger.log_and_print(f"Epoch {epoch}: Saving checkpoint model every {self.save_interval} epochs to: "
@@ -190,7 +190,7 @@ class SaveBestModelPrimitiveExtrusion():
 
     def update(self, mean_cmd_acc, mean_param_acc, epoch, model):
         new_score = 0.5 * mean_cmd_acc + 0.5 * mean_param_acc
-        checkpoint_bool = (self.current_epoch + 1) % self.save_interval == 0 and not new_score > self.best_score
+        checkpoint_bool = (self.current_epoch + 1) % self.save_interval == 0
         if checkpoint_bool:
             checkpoint_path = os.path.abspath(os.path.join(self.save_dir, f'ckpt_{self.current_epoch + 1}.pth'))
             self.logger.log_and_print(f"Epoch {epoch}: Saving checkpoint model every {self.save_interval} epochs to: "
