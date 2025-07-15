@@ -1,0 +1,21 @@
+#!/bin/bash -l
+
+#SBATCH --partition=gpu02_queue
+#SBATCH --nodes=1
+#SBATCH --time=7-00:00:00
+#SBATCH --job-name=test_complex
+#SBATCH --output=msg%x.%j.out
+#SBATCH --error=msg%x.%j.err
+#SBATCH --exclude=gpu07
+
+cd /work/y0110479/Master-Thesis/Point-Cloud-Reconstruction
+export PYTHONPATH=$(pwd):$PYTHONPATH
+export WANDB_API_KEY=22efc7f5b70c0a0812fb73908cb58c659dfd8239
+
+# to check GPUs
+nvidia-smi
+
+conda activate pointnet_venv
+python --version
+python -c "import torch, os; print(f'CUDA Available: {torch.cuda.is_available()}'); print(f'Device Count: {torch.cuda.device_count()}'); print(f'CUDA Version: {torch.version.cuda}'); print(f'CUDNN Enabled: {torch.backends.cudnn.enabled}'); print(f'torch: {torch.__version__}')"
+python code/test_complex_extr.py  --model_path "models/trained_models/complex_run/best.pth" --batch_size 48 --verbose
