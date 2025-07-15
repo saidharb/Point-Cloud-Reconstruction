@@ -173,7 +173,7 @@ def main(args):
     num_workers = 0 if device.type == 'cpu' else 8
     print("Num. workers: ", num_workers, flush=True)
 
-    test_dataset = PointCloudEmbeddingSequenceDataset(DATA_DIR, 'validation', use_normals=False)
+    test_dataset = PointCloudEmbeddingSequenceDataset(DATA_DIR, 'test', use_normals=False)
     test_dataloader = DataLoader(test_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = False)
     monitor.log_and_print(f"Test Dataloader: {len(test_dataset)}, Test Dataloader: {len(test_dataloader)}")
 
