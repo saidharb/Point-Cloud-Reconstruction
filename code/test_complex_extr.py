@@ -14,6 +14,10 @@ from code.utils import Logger
 from code.pn2_deepcad import Config
 from models.DeepCAD.trainer.loss import CADLoss
 from models.DeepCAD.cadlib.macro import CMD_ARGS_MASK, ALL_COMMANDS, EOS_IDX, SOL_IDX, EXT_IDX, ARC_IDX, N_ARGS
+from models.DeepCAD.cadlib.visualize import vec2CADsolid, CADsolid2pc
+from models.DeepCAD.utils import read_ply
+from scipy.spatial import cKDTree as KDTree
+import random
 
 def parse_args():
     '''PARAMETERS'''
@@ -25,7 +29,7 @@ def parse_args():
                     default='data', 
                     help='data directory relative to root directory')
     parser.add_argument('--model_path', type=str, required=True, help='path to the trained model')
-    parser.add_argument('--batch_size', type=int, default=24, help='batch size')
+  #  parser.add_argument('--batch_size', type=int, default=24, help='batch size')
     parser.add_argument('--gpu', action='store_true', default=False, 
                         help="Use multiple GPU's for training.")
     parser.add_argument('--verbose', action='store_true', default=False, help='output per batch metrics')
@@ -106,6 +110,50 @@ def calculate_ACC(results):
             "each_param_acc": each_param_acc, # per param number of correct
             "each_param_cnt": each_param_cnt} # per param count
 
+def normalize_pc(points):
+    scale = np.max(np.abs(points))
+    points = points / scale
+    return points
+
+def chamfer_dist(gt_points, gen_points, offset=0, scale=1):
+    gen_points = gen_points / scale - offset
+
+    # one direction
+    gen_points_kd_tree = KDTree(gen_points)
+    one_distances, one_vertex_ids = gen_points_kd_tree.query(gt_points)
+    gt_to_gen_chamfer = np.mean(np.square(one_distances))
+
+    # other direction
+    gt_points_kd_tree = KDTree(gt_points)
+    two_distances, two_vertex_ids = gt_points_kd_tree.query(gen_points)
+    gen_to_gt_chamfer = np.mean(np.square(two_distances))
+
+    return gt_to_gen_chamfer + gen_to_gt_chamfer
+
+def calculate_CD(vec_pred, gt_pc_path, vec_target, data_id):
+    seq_len = vec_target[:,0].tolist().index(EOS_IDX)
+    vec_pred = vec_pred.squeeze()[:seq_len]
+
+    try:
+        shape = vec2CADsolid(vec_pred) # out vec only contains until target seq length
+    except Exception as e:
+        return float('nan') # Create CAD failed
+    
+    try:
+        out_pc = CADsolid2pc(shape, 2000, data_id) # 2000 is the number of sampled points
+    except Exception as e:
+        return float('nan') # Create PC failed
+
+    if np.max(np.abs(out_pc)) > 2: # normalize out-of-bound data
+        out_pc = normalize_pc(out_pc)
+
+    gt_pc = read_ply(gt_pc_path)
+    sample_idx = random.sample(list(range(gt_pc.shape[0])), 2000)
+    gt_pc = gt_pc[sample_idx]
+
+    cd = chamfer_dist(gt_pc, out_pc)
+    return cd
+
 def main(args):
     print("### TEST STARTED ###\n")
 
@@ -143,7 +191,7 @@ def main(args):
 
     monitor.log_and_print(f"Using device: {device}\n")
     monitor.log_and_print(f"Number of devices: {torch.cuda.device_count()}")#
-    batch_size = args.batch_size
+    batch_size = 1
     if args.gpu and torch.cuda.device_count() > 1:
         monitor.log_and_print(f"Using {torch.cuda.device_count()} GPUs.\n")#
         classifier = nn.DataParallel(classifier)
@@ -161,6 +209,8 @@ def main(args):
     monitor.log_and_print(f"Test Dataloader: {len(test_dataset)}, Test Dataloader: {len(test_dataloader)}")
 
     scores_test = PrimitiveExtrusionRunningScore(len(ALL_COMMANDS), N_ARGS, model_dir, 'test', cont=False)
+    cd_list = []
+    missing_gt_pc_counter = 0
     monitor.log_and_print("### Test starts ###\n")
 
     classifier.eval()
@@ -168,6 +218,7 @@ def main(args):
         for i, data in enumerate(test_dataloader):
             pc = data['pc']
             sequence = data['tgt_vec']
+            id = data['id'][0]
 
             pc = pc.transpose(2, 1)
             pc, sequence = pc.to(device), sequence.to(device)
@@ -189,6 +240,13 @@ def main(args):
                                     "tgt_args": tgt_args,
                                     "pred": batch_out_vec})
             
+            gt_pc_path = os.path.join(DATA_DIR, "pc_from_vec", id[:4], id + ".ply")
+            if not os.path.exists(gt_pc_path):
+                missing_gt_pc_counter += 1
+            else:
+                cd = calculate_CD(batch_out_vec, gt_pc_path, sequence[0].detach().cpu().numpy(), id)
+                cd_list.append(cd)
+            
             scores_test.update(metrics, cmd_loss, args_loss, pc.shape[0])
             if args.verbose:
                 print(f"Batch {i + 1}/{len(test_dataloader)}: "
@@ -202,12 +260,14 @@ def main(args):
     for a in scores_test.get_metrics_list():
         monitor.log_and_print(a)
 
-    save_test_metrics(*scores_test.get_metrics_list(), save_path=model_dir)
+    save_test_metrics(*scores_test.get_metrics_list(), cd_list=cd_list, save_path=model_dir)
 
-def save_test_metrics(*lists, save_path):
+def save_test_metrics(*lists, cd_list, save_path):
     test_epoch_avg_cmd_acc, test_epoch_avg_param_acc, \
     test_epoch_cmd_loss, test_epoch_param_loss, test_epoch_per_cmd_acc, \
     test_epoch_per_param_acc = lists
+
+    np.save(os.path.join(save_path, "test_cd.npy"), np.array(cd_list))
 
     np.savez(os.path.join(save_path, "test_metrics.npz"),
              epoch_per_cmd_acc_test = np.array(test_epoch_per_cmd_acc),
