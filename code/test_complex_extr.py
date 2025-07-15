@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 import torch.nn as nn 
 import numpy as np
 
-from code.dataset import PCExtrusionSequenceDataset
+from code.dataset import PointCloudEmbeddingSequenceDataset
 from code.metrics import PrimitiveExtrusionRunningScore
 from code.utils import Logger
 from code.pn2_deepcad import Config
@@ -173,8 +173,8 @@ def main(args):
     num_workers = 0 if device.type == 'cpu' else 8
     print("Num. workers: ", num_workers, flush=True)
 
-    test_dataset = PCExtrusionSequenceDataset(DATA_DIR, 'test', cfg, verbose=True)
-    test_dataloader = DataLoader(test_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = False) # multiprocessing_context=multiprocessing.get_context("spawn")
+    test_dataset = PointCloudEmbeddingSequenceDataset(DATA_DIR, 'validation', use_normals=False)
+    test_dataloader = DataLoader(test_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = False)
     monitor.log_and_print(f"Test Dataloader: {len(test_dataset)}, Test Dataloader: {len(test_dataloader)}")
 
     scores_test = PrimitiveExtrusionRunningScore(len(ALL_COMMANDS), N_ARGS, model_dir, 'test', cont=False)
@@ -184,8 +184,7 @@ def main(args):
     with torch.no_grad():
         for i, data in enumerate(test_dataloader):
             pc = data['pc']
-            sequence = data['sequence']
-            extrusion_id = data['extrusion_id']
+            sequence = data['tgt_vec']
 
             pc = pc.transpose(2, 1)
             pc, sequence = pc.to(device), sequence.to(device)
@@ -214,15 +213,13 @@ def main(args):
                         f"Arguments-Loss: {args_loss:8.5f}",
                         flush=True)
             if i == 2:
-                break
-    mean_cmd_acc, mean_param_acc = scores_test.get_mean_accuracy()
-    avg_cmd_loss, avg_args_loss = scores_test.get_avg_loss()
+                 break
 
     scores_test.epoch_finished()
     for a in scores_test.get_metrics_list():
         monitor.log_and_print(a)
 
-    save_test_metrics(*scores_test.get_metrics_list(), save_dir=model_dir)
+    save_test_metrics(*scores_test.get_metrics_list(), save_path=model_dir)
 
 def save_test_metrics(*lists, save_path):
     test_epoch_avg_cmd_acc, test_epoch_avg_param_acc, \
