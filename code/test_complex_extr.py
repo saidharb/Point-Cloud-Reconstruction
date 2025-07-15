@@ -52,10 +52,6 @@ def logits2vec(outputs, device, refill_pad=True, to_numpy=True):
 def calculate_ACC(results):
 
     TOLERANCE = 3
-
-    # overall accuracy
-    avg_cmd_acc = [] # ACC_cmd
-    avg_param_acc = [] # ACC_param
     
     # accuracy w.r.t. each command type
     each_cmd_cnt = np.zeros((len(ALL_COMMANDS),))
@@ -101,27 +97,14 @@ def calculate_ACC(results):
                 each_param_cnt[cmd, np.arange(N_ARGS)] += 1
                 each_param_acc[cmd, np.arange(N_ARGS)] += tole_acc
 
-        if len(param_acc) == 0: # No cmd was correct, therefore no param is recorded
-            param_acc = 0       # Therefore the param accuarcy for this sample is 0
-        else:
-            param_acc = np.mean(param_acc)
-        
-        avg_param_acc.append(param_acc)
-        cmd_acc = np.mean(cmd_acc)
-        avg_cmd_acc.append(cmd_acc)
-
-    # acc of each command type
-    each_cmd_acc = each_cmd_acc / (each_cmd_cnt + 1e-6)
-
     # acc of each parameter type
     each_param_acc = each_param_acc * args_mask
     each_param_cnt = each_param_cnt * args_mask
-    each_param_acc = each_param_acc / (each_param_cnt + 1e-6)
 
-    return {"each_cmd_acc": each_cmd_acc, 
-            "each_cmd_cnt": each_cmd_cnt,
-            "each_param_acc": each_param_acc,
-            "each_param_cnt": each_param_cnt}
+    return {"each_cmd_acc": each_cmd_acc, # per cmd number of correct 
+            "each_cmd_cnt": each_cmd_cnt, # per cmd count
+            "each_param_acc": each_param_acc, # per param number of correct
+            "each_param_cnt": each_param_cnt} # per param count
 
 def main(args):
     print("### TEST STARTED ###\n")
@@ -212,8 +195,8 @@ def main(args):
                         f"Commands-Loss: {cmd_loss:8.5f}", 
                         f"Arguments-Loss: {args_loss:8.5f}",
                         flush=True)
-            if i == 2:
-                 break
+            # if i == 2:
+            #      break
 
     scores_test.epoch_finished()
     for a in scores_test.get_metrics_list():
