@@ -18,6 +18,7 @@ from models.DeepCAD.cadlib.visualize import vec2CADsolid, CADsolid2pc
 from models.DeepCAD.utils import read_ply
 from scipy.spatial import cKDTree as KDTree
 import random
+import pickle
 
 def parse_args():
     '''PARAMETERS'''
@@ -210,6 +211,9 @@ def main(args):
 
     scores_test = PrimitiveExtrusionRunningScore(len(ALL_COMMANDS), N_ARGS, model_dir, 'test', cont=False)
     cd_list = []
+    cd_per_sl = {sl: [] for sl in range(0,61)}
+    cmd_acc_per_sl = {sl: [] for sl in range(0,61)}
+    param_acc_per_sl = {sl: [] for sl in range(0,61)}
     missing_gt_pc_counter = 0
     monitor.log_and_print("### Test starts ###\n")
 
@@ -224,6 +228,8 @@ def main(args):
             pc, sequence = pc.to(device), sequence.to(device)
             output = classifier(pc)
             tgt_commands = sequence[:, :, 0]
+            seq_length = list(tgt_commands[0]).index(EOS_IDX)
+
             tgt_args = sequence[:, :, 1:]
 
             output["tgt_commands"] = tgt_commands.to(device)
@@ -246,6 +252,13 @@ def main(args):
             else:
                 cd = calculate_CD(batch_out_vec, gt_pc_path, sequence[0].detach().cpu().numpy(), id)
                 cd_list.append(cd)
+                cd_per_sl[seq_length].append(cd)
+
+            sample_cmd_acc = np.sum(metrics["each_cmd_acc"]) / np.sum(metrics["each_cmd_cnt"] + 1e-6)
+            sample_param_acc = np.sum(metrics["each_param_acc"]) / np.sum(metrics["each_param_cnt"] + 1e-6)
+
+            cmd_acc_per_sl[seq_length].append(sample_cmd_acc)
+            param_acc_per_sl[seq_length].append(sample_param_acc)
             
             scores_test.update(metrics, cmd_loss, args_loss, pc.shape[0])
             if args.verbose:
@@ -259,13 +272,21 @@ def main(args):
     scores_test.epoch_finished()
     for a in scores_test.get_metrics_list():
         monitor.log_and_print(a)
+    print(f"Missing GT PC: {missing_gt_pc_counter} out of {len(test_dataset)} samples", flush=True)
 
-    save_test_metrics(*scores_test.get_metrics_list(), cd_list=cd_list, save_path=model_dir)
+    save_test_metrics(*scores_test.get_metrics_list(), cd_list=cd_list, cd_dict=cd_per_sl, cmd_dict=cmd_acc_per_sl, param_dict=param_acc_per_sl, save_path=model_dir)
 
-def save_test_metrics(*lists, cd_list, save_path):
+def save_test_metrics(*lists, cd_list, cd_dict, cmd_dict, param_dict, save_path):
     test_epoch_avg_cmd_acc, test_epoch_avg_param_acc, \
     test_epoch_cmd_loss, test_epoch_param_loss, test_epoch_per_cmd_acc, \
     test_epoch_per_param_acc = lists
+
+    with open(os.path.join(save_path, "test_per_sl_metrics.pkl"), "wb") as f:
+        pickle.dump({
+            "cd" : cd_dict,
+            "cmd_acc": cmd_dict,
+            "param_acc": param_dict
+        }, f)
 
     np.save(os.path.join(save_path, "test_cd.npy"), np.array(cd_list))
 
