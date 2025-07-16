@@ -19,6 +19,7 @@ from models.DeepCAD.utils import read_ply
 from scipy.spatial import cKDTree as KDTree
 import random
 import pickle
+import pandas as pd
 
 def parse_args():
     '''PARAMETERS'''
@@ -211,11 +212,20 @@ def main(args):
 
     scores_test = PrimitiveExtrusionRunningScore(len(ALL_COMMANDS), N_ARGS, model_dir, 'test', cont=False)
     cd_list = []
-    cd_per_sl = {sl: [] for sl in range(0,61)}
-    cmd_acc_per_sl = {sl: [] for sl in range(0,61)}
-    param_acc_per_sl = {sl: [] for sl in range(0,61)}
     missing_gt_pc_counter = 0
     monitor.log_and_print("### Test starts ###\n")
+
+    # Instantiate pandas dataframe
+    rows = []
+    cols = [
+        "id", "set_id",
+        "cmd_acc", "param_acc", "cd", "tgt_commands", "tgt_args",
+        "target_seq", "pred_seq", "seq_len",
+        "cmd_count", "cmd_correct",
+        "param_count", "param_correct",
+        "cmd_loss", "param_loss", "total_loss",
+        ]
+
 
     classifier.eval()
     with torch.no_grad():
@@ -227,10 +237,11 @@ def main(args):
             pc = pc.transpose(2, 1)
             pc, sequence = pc.to(device), sequence.to(device)
             output = classifier(pc)
-            tgt_commands = sequence[:, :, 0]
-            seq_length = list(tgt_commands[0]).index(EOS_IDX)
 
+            tgt_commands = sequence[:, :, 0]
             tgt_args = sequence[:, :, 1:]
+
+            seq_length = list(tgt_commands[0]).index(EOS_IDX)
 
             output["tgt_commands"] = tgt_commands.to(device)
             output["tgt_args"] = tgt_args.to(device)
@@ -249,16 +260,43 @@ def main(args):
             gt_pc_path = os.path.join(DATA_DIR, "pc_from_vec", id[:4], id + ".ply")
             if not os.path.exists(gt_pc_path):
                 missing_gt_pc_counter += 1
+                cd = float('nan')
             else:
                 cd = calculate_CD(batch_out_vec, gt_pc_path, sequence[0].detach().cpu().numpy(), id)
                 cd_list.append(cd)
-                cd_per_sl[seq_length].append(cd)
 
             sample_cmd_acc = np.sum(metrics["each_cmd_acc"]) / np.sum(metrics["each_cmd_cnt"] + 1e-6)
             sample_param_acc = np.sum(metrics["each_param_acc"]) / np.sum(metrics["each_param_cnt"] + 1e-6)
 
-            cmd_acc_per_sl[seq_length].append(sample_cmd_acc)
-            param_acc_per_sl[seq_length].append(sample_param_acc)
+            COMMAND_NAMES = ['L', 'A', 'C', 'EOS', 'S', 'E']
+            tgt_args_list = []
+            for k, cmd in enumerate(tgt_commands.squeeze()[:seq_length].tolist()):
+                if not k == seq_length:
+                    tgt_args_list.append(f"{COMMAND_NAMES[cmd]}")
+                params = tgt_args.squeeze()[k]
+                selected_args = params[torch.tensor(CMD_ARGS_MASK[cmd]).bool()]
+                tgt_args_list.extend(selected_args.tolist())
+
+            row = {
+                "id": id,                   # str
+                "set_id": i,           # int
+                "cmd_acc": sample_cmd_acc,         # float
+                "param_acc": sample_param_acc,     # float
+                "cd": cd,                   # float
+                "tgt_commands": tgt_commands.squeeze()[:seq_length].tolist(), # torch.Tensor (60,)
+                "tgt_args": tgt_args_list,         # torch.Tensor (60, 16)
+                "target_seq": sequence,   # torch.Tensor (60×17)
+                "pred_seq": batch_out_vec,       # torch.Tensor (60×17)
+                "seq_len": seq_length,        # int
+                "cmd_count": metrics["each_cmd_cnt"],     # torch.Tensor (6,)
+                "cmd_correct": metrics["each_cmd_acc"], # torch.Tensor (6,)
+                "param_count": metrics["each_param_cnt"], # torch.Tensor (6×16)
+                "param_correct": metrics["each_param_acc"], # torch.Tensor (6×16)
+                "cmd_loss": cmd_loss,              # float
+                "param_loss": args_loss,          # float
+                "total_loss": cmd_loss + args_loss, # float
+            }
+            rows.append(row)
             
             scores_test.update(metrics, cmd_loss, args_loss, pc.shape[0])
             if args.verbose:
@@ -266,27 +304,29 @@ def main(args):
                         f"Commands-Loss: {cmd_loss:8.5f}", 
                         f"Arguments-Loss: {args_loss:8.5f}",
                         flush=True)
-            # if i == 2:
-            #      break
+            if i == 2:
+                 break
 
     scores_test.epoch_finished()
     for a in scores_test.get_metrics_list():
         monitor.log_and_print(a)
     print(f"Missing GT PC: {missing_gt_pc_counter} out of {len(test_dataset)} samples", flush=True)
 
-    save_test_metrics(*scores_test.get_metrics_list(), cd_list=cd_list, cd_dict=cd_per_sl, cmd_dict=cmd_acc_per_sl, param_dict=param_acc_per_sl, save_path=model_dir)
+    save_test_metrics(*scores_test.get_metrics_list(), cd_list=cd_list, save_path=model_dir)
+    df = pd.DataFrame(rows, columns=cols)
+    df.to_pickle(os.path.join(model_dir, "test_sample_results.pkl"))
 
-def save_test_metrics(*lists, cd_list, cd_dict, cmd_dict, param_dict, save_path):
+def save_test_metrics(*lists, cd_list, save_path):
     test_epoch_avg_cmd_acc, test_epoch_avg_param_acc, \
     test_epoch_cmd_loss, test_epoch_param_loss, test_epoch_per_cmd_acc, \
     test_epoch_per_param_acc = lists
 
-    with open(os.path.join(save_path, "test_per_sl_metrics.pkl"), "wb") as f:
-        pickle.dump({
-            "cd" : cd_dict,
-            "cmd_acc": cmd_dict,
-            "param_acc": param_dict
-        }, f)
+    # with open(os.path.join(save_path, "test_per_sl_metrics.pkl"), "wb") as f:
+    #     pickle.dump({
+    #         "cd" : cd_dict,
+    #         "cmd_acc": cmd_dict,
+    #         "param_acc": param_dict
+    #     }, f)
 
     np.save(os.path.join(save_path, "test_cd.npy"), np.array(cd_list))
 
