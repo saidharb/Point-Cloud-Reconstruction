@@ -219,13 +219,12 @@ def main(args):
     rows = []
     cols = [
         "id", "set_id",
-        "cmd_acc", "param_acc", "cd", "tgt_commands", "tgt_args",
-        "target_seq", "pred_seq", "seq_len",
-        "cmd_count", "cmd_correct",
-        "param_count", "param_correct",
+        "cmd_acc", "param_acc", "cd", "tgt_commands", "pred_commands", "tgt_args",
+        "pred_args", "seq_len", "pred_seq_len",
+        "cmd_count", "cmd_correct", "cmd_count_total", "cmd_correct_total",
+        "per_cmd_param_count", "per_cmd_param_correct", "param_count_total", "param_correct_total",
         "cmd_loss", "param_loss", "total_loss",
         ]
-
 
     classifier.eval()
     with torch.no_grad():
@@ -252,6 +251,9 @@ def main(args):
             args_loss = loss_dict['loss_args'].detach().cpu().item()
 
             batch_out_vec = logits2vec(output, device)
+            pred_commands = batch_out_vec[:, :, 0]
+            pred_args = batch_out_vec[:, :, 1:]
+            pred_seq_length = list(pred_commands[0]).index(EOS_IDX)
 
             metrics = calculate_ACC({"tgt_commands": tgt_commands,
                                     "tgt_args": tgt_args,
@@ -270,12 +272,19 @@ def main(args):
 
             COMMAND_NAMES = ['L', 'A', 'C', 'EOS', 'S', 'E']
             tgt_args_list = []
+            pred_args_list = []
             for k, cmd in enumerate(tgt_commands.squeeze()[:seq_length].tolist()):
                 if not k == seq_length:
                     tgt_args_list.append(f"{COMMAND_NAMES[cmd]}")
                 params = tgt_args.squeeze()[k]
                 selected_args = params[torch.tensor(CMD_ARGS_MASK[cmd]).bool()]
                 tgt_args_list.extend(selected_args.tolist())
+            for k, cmd in enumerate(pred_commands.squeeze()[:seq_length].tolist()):
+                if not k == pred_seq_length:
+                    pred_args_list.append(f"{COMMAND_NAMES[cmd]}")
+                params = pred_args.squeeze()[k]
+                selected_args = params[torch.tensor(CMD_ARGS_MASK[cmd]).bool()]
+                pred_args_list.extend(selected_args.tolist())
 
             row = {
                 "id": id,                   # str
@@ -284,14 +293,19 @@ def main(args):
                 "param_acc": sample_param_acc,     # float
                 "cd": cd,                   # float
                 "tgt_commands": tgt_commands.squeeze()[:seq_length].tolist(), # torch.Tensor (60,)
+                "pred_commands": pred_commands.squeeze()[:pred_seq_length].tolist(),
                 "tgt_args": tgt_args_list,         # torch.Tensor (60, 16)
-                "target_seq": sequence,   # torch.Tensor (60×17)
-                "pred_seq": batch_out_vec,       # torch.Tensor (60×17)
+                "pred_args": pred_args_list,
                 "seq_len": seq_length,        # int
-                "cmd_count": metrics["each_cmd_cnt"],     # torch.Tensor (6,)
-                "cmd_correct": metrics["each_cmd_acc"], # torch.Tensor (6,)
-                "param_count": metrics["each_param_cnt"], # torch.Tensor (6×16)
-                "param_correct": metrics["each_param_acc"], # torch.Tensor (6×16)
+                "pred_seq_len": pred_seq_length, # int
+                "cmd_count": metrics["each_cmd_cnt"].astype(int),     # torch.Tensor (6,)
+                "cmd_correct": metrics["each_cmd_acc"].astype(int), # torch.Tensor (6,)
+                "cmd_count_total": np.sum(metrics["each_cmd_cnt"]).astype(int), # int
+                "cmd_correct_total": np.sum(metrics["each_cmd_acc"]).astype(int), # int
+                "per_cmd_param_count": metrics["each_param_cnt"].astype(int), # torch.Tensor (6×16)
+                "per_cmd_param_correct": metrics["each_param_acc"].astype(int), # torch.Tensor (6×16)
+                "param_count_total": np.sum(metrics["each_param_cnt"]).astype(int), # int
+                "param_correct_total": np.sum(metrics["each_param_acc"]).astype(int), # int
                 "cmd_loss": cmd_loss,              # float
                 "param_loss": args_loss,          # float
                 "total_loss": cmd_loss + args_loss, # float
@@ -304,7 +318,7 @@ def main(args):
                         f"Commands-Loss: {cmd_loss:8.5f}", 
                         f"Arguments-Loss: {args_loss:8.5f}",
                         flush=True)
-            if i == 2:
+            if i == 10:
                  break
 
     scores_test.epoch_finished()
