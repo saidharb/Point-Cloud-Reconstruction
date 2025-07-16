@@ -318,15 +318,15 @@ def main(args):
                         f"Commands-Loss: {cmd_loss:8.5f}", 
                         f"Arguments-Loss: {args_loss:8.5f}",
                         flush=True)
-            if i == 10:
-                 break
+            # if i == 10:
+            #      break
 
     scores_test.epoch_finished()
     for a in scores_test.get_metrics_list():
         monitor.log_and_print(a)
     print(f"Missing GT PC: {missing_gt_pc_counter} out of {len(test_dataset)} samples", flush=True)
 
-    save_test_metrics(*scores_test.get_metrics_list(), cd_list=cd_list, save_path=model_dir)
+    # save_test_metrics(*scores_test.get_metrics_list(), cd_list=cd_list, save_path=model_dir)
     df = pd.DataFrame(rows, columns=cols)
     df.to_pickle(os.path.join(model_dir, "test_sample_results.pkl"))
 
