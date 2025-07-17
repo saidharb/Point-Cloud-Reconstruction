@@ -14,6 +14,11 @@ from code.utils import Logger
 from code.pn2_deepcad import Config
 from models.DeepCAD.trainer.loss import CADLoss
 from models.DeepCAD.cadlib.macro import CMD_ARGS_MASK, ALL_COMMANDS, EOS_IDX, SOL_IDX, EXT_IDX, ARC_IDX, N_ARGS
+from models.DeepCAD.cadlib.visualize import vec2CADsolid, CADsolid2pc
+from models.DeepCAD.utils import read_ply
+from scipy.spatial import cKDTree as KDTree
+import random
+import pandas as pd
 
 def parse_args():
     '''PARAMETERS'''
@@ -25,11 +30,35 @@ def parse_args():
                     default='data', 
                     help='data directory relative to root directory')
     parser.add_argument('--model_path', type=str, required=True, help='path to the trained model')
-    parser.add_argument('--batch_size', type=int, default=24, help='batch size')
+  #  parser.add_argument('--batch_size', type=int, default=24, help='batch size')
     parser.add_argument('--gpu', action='store_true', default=False, 
                         help="Use multiple GPU's for training.")
     parser.add_argument('--verbose', action='store_true', default=False, help='output per batch metrics')
     return parser.parse_args()
+
+def adjust_pointcloud_to_fixed_size(points, target_n=2048):
+    """
+    Adjust a point cloud and its labels to a fixed number of points.
+
+    - If len(points) > target_n: randomly downsample
+    - If len(points) < target_n: randomly upsample with replacement
+
+    :param points: (N, 3) np.ndarray
+    :param labels: (N,) np.ndarray
+    :param target_n: int, desired number of points
+    :return: (target_n, 3) points, (target_n,) labels
+    """
+    n = points.shape[0]
+
+    if n == target_n:
+        return points
+    elif n > target_n:
+        idx = np.random.choice(n, target_n, replace=False)
+    else:
+        idx_extra = np.random.choice(n, target_n - n, replace=True)
+        idx = np.concatenate([np.arange(n), idx_extra])
+
+    return points[idx]
 
 def inplace_relu(m):
     classname = m.__class__.__name__
@@ -106,6 +135,54 @@ def calculate_ACC(results):
             "each_param_acc": each_param_acc, # per param number of correct
             "each_param_cnt": each_param_cnt} # per param count
 
+def normalize_pc(points):
+    scale = np.max(np.abs(points))
+    points = points / scale
+    return points
+
+def chamfer_dist(gt_points, gen_points, offset=0, scale=1):
+    gen_points = gen_points / scale - offset
+
+    # one direction
+    gen_points_kd_tree = KDTree(gen_points)
+    one_distances, one_vertex_ids = gen_points_kd_tree.query(gt_points)
+    gt_to_gen_chamfer = np.mean(np.square(one_distances))
+
+    # other direction
+    gt_points_kd_tree = KDTree(gt_points)
+    two_distances, two_vertex_ids = gt_points_kd_tree.query(gen_points)
+    gen_to_gt_chamfer = np.mean(np.square(two_distances))
+
+    return gt_to_gen_chamfer + gen_to_gt_chamfer
+
+def calculate_CD(vec_pred, gt_pc_path, data_id):
+    try:
+        pred_seq_len = vec_pred[0,:,0].tolist().index(EOS_IDX)
+    except Exception as e:
+        pred_seq_len = 60
+    vec_pred = vec_pred.squeeze()[:pred_seq_len]
+
+    try:
+        shape = vec2CADsolid(vec_pred) # out vec only contains until target seq length
+    except Exception as e:
+        return float('nan') # Create CAD failed
+    
+    try:
+        out_pc = CADsolid2pc(shape, 2000, data_id) # 2000 is the number of sampled points
+    except Exception as e:
+        return float('nan') # Create PC failed
+
+    if np.max(np.abs(out_pc)) > 2: # normalize out-of-bound data
+        out_pc = normalize_pc(out_pc)
+
+    gt_pc = read_ply(gt_pc_path)
+    gt_pc = adjust_pointcloud_to_fixed_size(gt_pc)
+    sample_idx = random.sample(list(range(gt_pc.shape[0])), 2000)
+    gt_pc = gt_pc[sample_idx]
+
+    cd = chamfer_dist(gt_pc, out_pc)
+    return cd
+
 def main(args):
     print("### TEST STARTED ###\n")
 
@@ -143,7 +220,7 @@ def main(args):
 
     monitor.log_and_print(f"Using device: {device}\n")
     monitor.log_and_print(f"Number of devices: {torch.cuda.device_count()}")#
-    batch_size = args.batch_size
+    batch_size = 1
     if args.gpu and torch.cuda.device_count() > 1:
         monitor.log_and_print(f"Using {torch.cuda.device_count()} GPUs.\n")#
         classifier = nn.DataParallel(classifier)
@@ -157,24 +234,41 @@ def main(args):
     print("Num. workers: ", num_workers, flush=True)
 
     test_dataset = PCExtrusionSequenceDataset(DATA_DIR, 'test', cfg, verbose=True)
-    test_dataloader = DataLoader(test_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = False) # multiprocessing_context=multiprocessing.get_context("spawn")
+    test_dataloader = DataLoader(test_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = False)
     monitor.log_and_print(f"Test Dataloader: {len(test_dataset)}, Test Dataloader: {len(test_dataloader)}")
 
     scores_test = PrimitiveExtrusionRunningScore(len(ALL_COMMANDS), N_ARGS, model_dir, 'test', cont=False)
+    cd_list = []
+    missing_gt_pc_counter = 0
     monitor.log_and_print("### Test starts ###\n")
+
+    # Instantiate pandas dataframe
+    rows = []
+    cols = [
+        "id", "set_id",
+        "cmd_acc", "param_acc", "cd", "tgt_commands", "pred_commands", "tgt_args",
+        "pred_args", "seq_len", "pred_seq_len",
+        "cmd_count", "cmd_correct", "cmd_count_total", "cmd_correct_total",
+        "per_cmd_param_count", "per_cmd_param_correct", "param_count_total", "param_correct_total",
+        "cmd_loss", "param_loss", "total_loss",
+        ]
 
     classifier.eval()
     with torch.no_grad():
         for i, data in enumerate(test_dataloader):
             pc = data['pc']
             sequence = data['sequence']
-            extrusion_id = data['extrusion_id']
+            extr_id = data['extrusion_id'].item()
+            id = test_dataset.get_id(i)
 
             pc = pc.transpose(2, 1)
             pc, sequence = pc.to(device), sequence.to(device)
             output = classifier(pc)
+
             tgt_commands = sequence[:, :, 0]
             tgt_args = sequence[:, :, 1:]
+
+            seq_length = list(tgt_commands[0]).index(EOS_IDX)
 
             output["tgt_commands"] = tgt_commands.to(device)
             output["tgt_args"] = tgt_args.to(device)
@@ -185,10 +279,70 @@ def main(args):
             args_loss = loss_dict['loss_args'].detach().cpu().item()
 
             batch_out_vec = logits2vec(output, device)
+            pred_commands = batch_out_vec[:, :, 0]
+            pred_args = batch_out_vec[:, :, 1:]
+            try:
+                pred_seq_length = list(pred_commands[0]).index(EOS_IDX)
+            except Exception as e:
+                pred_seq_length = 60
+
 
             metrics = calculate_ACC({"tgt_commands": tgt_commands,
                                     "tgt_args": tgt_args,
                                     "pred": batch_out_vec})
+            
+            gt_pc_path = test_dataset.get_pc_path(i)
+            if not os.path.exists(gt_pc_path):
+                missing_gt_pc_counter += 1
+                cd = float('nan')
+            else:
+                cd = calculate_CD(batch_out_vec, gt_pc_path, id)
+                cd_list.append(cd)
+
+            sample_cmd_acc = np.sum(metrics["each_cmd_acc"]) / np.sum(metrics["each_cmd_cnt"] + 1e-6)
+            sample_param_acc = np.sum(metrics["each_param_acc"]) / np.sum(metrics["each_param_cnt"] + 1e-6)
+
+            COMMAND_NAMES = ['L', 'A', 'C', 'EOS', 'S', 'E']
+            tgt_args_list = []
+            pred_args_list = []
+            for k, cmd in enumerate(tgt_commands.squeeze()[:seq_length].tolist()):
+                if not k == seq_length:
+                    tgt_args_list.append(f"{COMMAND_NAMES[cmd]}")
+                params = tgt_args.squeeze()[k]
+                selected_args = params[torch.tensor(CMD_ARGS_MASK[cmd]).bool()]
+                tgt_args_list.extend(selected_args.tolist())
+            for k, cmd in enumerate(pred_commands.squeeze()[:seq_length].tolist()):
+                if not k == pred_seq_length:
+                    pred_args_list.append(f"{COMMAND_NAMES[cmd]}")
+                params = pred_args.squeeze()[k]
+                selected_args = params[torch.tensor(CMD_ARGS_MASK[cmd]).bool()]
+                pred_args_list.extend(selected_args.tolist())
+
+            row = {
+                "id": id,                   # str
+                "set_id": i,           # int
+                "cmd_acc": sample_cmd_acc,         # float
+                "param_acc": sample_param_acc,     # float
+                "cd": cd,                   # float
+                "tgt_commands": tgt_commands.squeeze()[:seq_length].tolist(), # torch.Tensor (60,)
+                "pred_commands": pred_commands.squeeze()[:pred_seq_length].tolist(),
+                "tgt_args": tgt_args_list,         # torch.Tensor (60, 16)
+                "pred_args": pred_args_list,
+                "seq_len": seq_length,        # int
+                "pred_seq_len": pred_seq_length, # int
+                "cmd_count": metrics["each_cmd_cnt"].astype(int),     # torch.Tensor (6,)
+                "cmd_correct": metrics["each_cmd_acc"].astype(int), # torch.Tensor (6,)
+                "cmd_count_total": np.sum(metrics["each_cmd_cnt"]).astype(int), # int
+                "cmd_correct_total": np.sum(metrics["each_cmd_acc"]).astype(int), # int
+                "per_cmd_param_count": metrics["each_param_cnt"].astype(int), # torch.Tensor (6×16)
+                "per_cmd_param_correct": metrics["each_param_acc"].astype(int), # torch.Tensor (6×16)
+                "param_count_total": np.sum(metrics["each_param_cnt"]).astype(int), # int
+                "param_correct_total": np.sum(metrics["each_param_acc"]).astype(int), # int
+                "cmd_loss": cmd_loss,              # float
+                "param_loss": args_loss,          # float
+                "total_loss": cmd_loss + args_loss, # float
+            }
+            rows.append(row)
             
             scores_test.update(metrics, cmd_loss, args_loss, pc.shape[0])
             if args.verbose:
@@ -196,21 +350,31 @@ def main(args):
                         f"Commands-Loss: {cmd_loss:8.5f}", 
                         f"Arguments-Loss: {args_loss:8.5f}",
                         flush=True)
-            # if i == 2:
-            #     break
-    mean_cmd_acc, mean_param_acc = scores_test.get_mean_accuracy()
-    avg_cmd_loss, avg_args_loss = scores_test.get_avg_loss()
+            # if i == 10:
+            #      break
 
     scores_test.epoch_finished()
     for a in scores_test.get_metrics_list():
         monitor.log_and_print(a)
+    print(f"Missing GT PC: {missing_gt_pc_counter} out of {len(test_dataset)} samples", flush=True)
 
-    save_test_metrics(*scores_test.get_metrics_list(), save_dir=model_dir)
+    # save_test_metrics(*scores_test.get_metrics_list(), cd_list=cd_list, save_path=model_dir)
+    df = pd.DataFrame(rows, columns=cols)
+    df.to_pickle(os.path.join(model_dir, "test_sample_results.pkl"))
 
-def save_test_metrics(*lists, save_path):
+def save_test_metrics(*lists, cd_list, save_path):
     test_epoch_avg_cmd_acc, test_epoch_avg_param_acc, \
     test_epoch_cmd_loss, test_epoch_param_loss, test_epoch_per_cmd_acc, \
     test_epoch_per_param_acc = lists
+
+    # with open(os.path.join(save_path, "test_per_sl_metrics.pkl"), "wb") as f:
+    #     pickle.dump({
+    #         "cd" : cd_dict,
+    #         "cmd_acc": cmd_dict,
+    #         "param_acc": param_dict
+    #     }, f)
+
+    np.save(os.path.join(save_path, "test_cd.npy"), np.array(cd_list))
 
     np.savez(os.path.join(save_path, "test_metrics.npz"),
              epoch_per_cmd_acc_test = np.array(test_epoch_per_cmd_acc),

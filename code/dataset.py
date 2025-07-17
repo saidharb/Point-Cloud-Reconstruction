@@ -301,6 +301,10 @@ class PCExtrusionSequenceDataset():
     def get_pc_path(self, idx):
         return self.pc[idx] 
 
+    def get_id(self, idx):
+        pc_path = self.get_pc_path(idx)
+        return os.path.basename(pc_path).replace(".ply", "")
+
     def get_label_path(self, idx):
         return self.labels[idx]
 
