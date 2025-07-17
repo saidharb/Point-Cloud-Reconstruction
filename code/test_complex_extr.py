@@ -132,9 +132,9 @@ def chamfer_dist(gt_points, gen_points, offset=0, scale=1):
 
     return gt_to_gen_chamfer + gen_to_gt_chamfer
 
-def calculate_CD(vec_pred, gt_pc_path, vec_target, data_id):
-    seq_len = vec_target[:,0].tolist().index(EOS_IDX)
-    vec_pred = vec_pred.squeeze()[:seq_len]
+def calculate_CD(vec_pred, gt_pc_path, data_id):
+    pred_seq_len = vec_pred[0,:,0].tolist().index(EOS_IDX)
+    vec_pred = vec_pred.squeeze()[:pred_seq_len]
 
     try:
         shape = vec2CADsolid(vec_pred) # out vec only contains until target seq length
@@ -264,7 +264,7 @@ def main(args):
                 missing_gt_pc_counter += 1
                 cd = float('nan')
             else:
-                cd = calculate_CD(batch_out_vec, gt_pc_path, sequence[0].detach().cpu().numpy(), id)
+                cd = calculate_CD(batch_out_vec, gt_pc_path, id)
                 cd_list.append(cd)
 
             sample_cmd_acc = np.sum(metrics["each_cmd_acc"]) / np.sum(metrics["each_cmd_cnt"] + 1e-6)
