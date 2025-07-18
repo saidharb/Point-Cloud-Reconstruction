@@ -303,6 +303,12 @@ class PCExtrusionSequenceDataset():
         assert len(self.pc) == len(self.labels), "Number of point clouds and labels doesn't match"
         return len(self.pc)
 
+    def get_indices_for_id(self, id):
+        """
+        Returns the indices of all subcomponents of a point cloud with the given id.
+        """
+        return [i for i, pc_path in enumerate(self.pc) if id in os.path.basename(pc_path)]
+
     def get_pc_path(self, idx):
         return self.pc[idx] 
 
