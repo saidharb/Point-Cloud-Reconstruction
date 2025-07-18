@@ -274,10 +274,15 @@ class PCExtrusionSequenceDataset():
 
         pad_len = self.cfg.max_total_len - sequence.shape[0]
         cad_vec = np.concatenate([sequence, EOS_VEC[np.newaxis].repeat(pad_len, axis=0)], axis=0)
+        cad_vec = torch.tensor(cad_vec, dtype=torch.long)
+
+        id = self.get_id(idx)
         
         return {'pc': point_cloud,
                'extrusion_id': extr_id,
-               'sequence': cad_vec}
+               'sequence': cad_vec,
+               'id': id,
+               'pc_path': self.pc[idx]}
 
     def read_split(self):
         with open(self.split_path, "r") as fp:

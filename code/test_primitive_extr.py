@@ -259,7 +259,7 @@ def main(args):
             pc = data['pc']
             sequence = data['sequence']
             extr_id = data['extrusion_id'].item()
-            id = test_dataset.get_id(i)
+            id = data['id'][0]
 
             pc = pc.transpose(2, 1)
             pc, sequence = pc.to(device), sequence.to(device)
@@ -291,7 +291,7 @@ def main(args):
                                     "tgt_args": tgt_args,
                                     "pred": batch_out_vec})
             
-            gt_pc_path = test_dataset.get_pc_path(i)
+            gt_pc_path = data['pc_path'][0]
             if not os.path.exists(gt_pc_path):
                 missing_gt_pc_counter += 1
                 cd = float('nan')
