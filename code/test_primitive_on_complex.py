@@ -359,7 +359,7 @@ def main(args):
                                     "tgt_args": tgt_args,
                                     "pred": batch_out_vec})
             
-            gt_pc_path = os.path.join("../data", "pc_from_vec", id[:4], id + ".ply")
+            gt_pc_path = os.path.join(DATA_DIR, "pc_from_vec", id[:4], id + ".ply")
             if not os.path.exists(gt_pc_path):
                 missing_gt_pc_counter += 1
                 cd = float('nan')
