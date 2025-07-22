@@ -197,6 +197,7 @@ def main(args):
         monitor.log_and_print("Model was saved wrapped in nn.DataParallel.\nRemoving 'module.' from state dict.")
         state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}#
     classifier.load_state_dict(state_dict)
+    print(f'Loaded state dict from {args.model_path}.')
 
     # Load DeepCAD model
     cfg = ConfigAE('test', parse=False) # Creates config data and model and log dirs if they don't exist
@@ -238,21 +239,23 @@ def main(args):
         "pred_args", "seq_len", "pred_seq_len",
         "cmd_count", "cmd_correct", "cmd_count_total", "cmd_correct_total",
         "per_cmd_param_count", "per_cmd_param_correct", "param_count_total", "param_correct_total",
-        "cmd_loss", "param_loss", "total_loss",
+        "cmd_loss", "param_loss", "total_loss", "mse_loss",
         ]
 
     classifier.eval()
     tr_agent.net.eval()
     with torch.no_grad():
         for i, data in enumerate(test_dataloader):
-            pc = data['pc']
-            sequence = data['tgt_vec']
-            id = data['id'][0]
 
+            pc, sequence, latent_rep, id = data["pc"], data["tgt_vec"], data["z"], data["id"][0]
+            pc, latent_rep = pc.to(device), latent_rep.to(device)
             pc = pc.transpose(2, 1)
-            pc, sequence = pc.to(device), sequence.to(device)
-            output = classifier(pc)
+            pred, _ = classifier(pc)
+            mse_loss = criterion(pred,latent_rep)
 
+            pred = pred.unsqueeze(1) # CRITICAL: shape = (B,1,256), NOT (1,B,256) -> unsqueeze(1 not 0)
+            output = tr_agent.decode(pred)
+            
             tgt_commands = sequence[:, :, 0]
             tgt_args = sequence[:, :, 1:]
 
@@ -261,7 +264,7 @@ def main(args):
             output["tgt_commands"] = tgt_commands.to(device)
             output["tgt_args"] = tgt_args.to(device)
 
-            loss_dict = criterion(output)
+            loss_dict = tr_agent.loss_func(output)
 
             cmd_loss = loss_dict['loss_cmd'].detach().cpu().item()
             args_loss = loss_dict['loss_args'].detach().cpu().item()
@@ -325,6 +328,7 @@ def main(args):
                 "cmd_loss": cmd_loss,              # float
                 "param_loss": args_loss,          # float
                 "total_loss": cmd_loss + args_loss, # float
+                "mse_loss": mse_loss.detach().cpu().item() # float
             }
             rows.append(row)
             
@@ -344,7 +348,7 @@ def main(args):
 
     # save_test_metrics(*scores_test.get_metrics_list(), cd_list=cd_list, save_path=model_dir)
     df = pd.DataFrame(rows, columns=cols)
-    df.to_pickle(os.path.join(model_dir, "test_sample_results.pkl"))
+    df.to_pickle(os.path.join(model_dir, "test_sample_results_complex.pkl"))
 
 def save_test_metrics(*lists, cd_list, save_path):
     test_epoch_avg_cmd_acc, test_epoch_avg_param_acc, \
