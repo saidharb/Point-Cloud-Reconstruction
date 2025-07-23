@@ -7,9 +7,8 @@ import torch
 from torch.utils.data import DataLoader
 import torch.nn as nn 
 import numpy as np
-import re
 
-from code.dataset import PCExtrusionSequenceDataset, PointCloudEmbeddingSequenceDataset
+from code.dataset import PointCloudEmbeddingSequenceDataset
 from code.metrics import PrimitiveExtrusionRunningScore
 from code.utils import Logger
 from code.pn2_deepcad import Config
@@ -19,12 +18,11 @@ from models.DeepCAD.cadlib.visualize import vec2CADsolid, CADsolid2pc
 from models.DeepCAD.utils import read_ply
 from scipy.spatial import cKDTree as KDTree
 import random
+import pickle
 import pandas as pd
-
-# In this script, the primitive end-to-end model is tested in the task of
-# reassembling complex models. I.e. the model is give the components of a complex model
-# and iteratively predicts the components, which are manually reassembled afterwards and
-# compared witht the ground truth complex model.
+import sys
+from models.DeepCAD.config.configAE import ConfigAE
+from models.DeepCAD.trainer.trainerAE import TrainerAE
 
 def parse_args():
     '''PARAMETERS'''
@@ -40,30 +38,6 @@ def parse_args():
                         help="Use multiple GPU's for training.")
     parser.add_argument('--verbose', action='store_true', default=False, help='output per batch metrics')
     return parser.parse_args()
-
-def adjust_pointcloud_to_fixed_size(points, target_n=2048):
-    """
-    Adjust a point cloud and its labels to a fixed number of points.
-
-    - If len(points) > target_n: randomly downsample
-    - If len(points) < target_n: randomly upsample with replacement
-
-    :param points: (N, 3) np.ndarray
-    :param labels: (N,) np.ndarray
-    :param target_n: int, desired number of points
-    :return: (target_n, 3) points, (target_n,) labels
-    """
-    n = points.shape[0]
-
-    if n == target_n:
-        return points
-    elif n > target_n:
-        idx = np.random.choice(n, target_n, replace=False)
-    else:
-        idx_extra = np.random.choice(n, target_n - n, replace=True)
-        idx = np.concatenate([np.arange(n), idx_extra])
-
-    return points[idx]
 
 def inplace_relu(m):
     classname = m.__class__.__name__
@@ -161,10 +135,7 @@ def chamfer_dist(gt_points, gen_points, offset=0, scale=1):
     return gt_to_gen_chamfer + gen_to_gt_chamfer
 
 def calculate_CD(vec_pred, gt_pc_path, data_id):
-    try:
-        pred_seq_len = vec_pred[0,:,0].tolist().index(EOS_IDX)
-    except Exception as e:
-        pred_seq_len = 60
+    pred_seq_len = vec_pred[0,:,0].tolist().index(EOS_IDX)
     vec_pred = vec_pred.squeeze()[:pred_seq_len]
 
     try:
@@ -181,36 +152,11 @@ def calculate_CD(vec_pred, gt_pc_path, data_id):
         out_pc = normalize_pc(out_pc)
 
     gt_pc = read_ply(gt_pc_path)
-    gt_pc = adjust_pointcloud_to_fixed_size(gt_pc)
     sample_idx = random.sample(list(range(gt_pc.shape[0])), 2000)
     gt_pc = gt_pc[sample_idx]
 
     cd = chamfer_dist(gt_pc, out_pc)
     return cd
-
-def extract_suffix_number(path):
-    # Extract number after last underscore and before .ply
-    match = re.search(r'_([0-9]+)\.ply$', os.path.basename(path))
-    return int(match.group(1)) if match else -1
-
-def assemble_full_model_from_parts(batch_out_vec_pred_seq_len_list):
-    full_model_sequence = np.full((60, 17), -1)
-    full_model_sequence[:, 0] = 3
-    start = 0
-    for bov, psl in batch_out_vec_pred_seq_len_list:
-        if psl == 0:
-            continue  
-        end = psl + start
-        if end > 60:
-            available_space = 60 - start
-            if available_space > 0:
-                full_model_sequence[start:60] = bov[:available_space, :]
-            break
-        else:
-            full_model_sequence[start:end] = bov[:psl, :]
-            start = end
-
-    return full_model_sequence
 
 def main(args):
     print("### TEST STARTED ###\n")
@@ -221,13 +167,12 @@ def main(args):
     else:
         DATA_DIR = os.path.abspath(args.data_root)
 
-    # Find model directory
+        # Find model directory
     assert(os.path.exists(args.model_path)), f"Model path {args.model_path} does not exist."
     model_dir = os.path.dirname(os.path.abspath(args.model_path))
 
     monitor = Logger(model_dir, 'test')
 
-    # Load model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     saved_model = torch.load(args.model_path, map_location=torch.device(device), weights_only=True)
 
@@ -236,16 +181,31 @@ def main(args):
     for key, value in config.items():
         monitor.log_and_print(f"{key}: {value}")
 
-    cfg = Config()
-    model_name = "pn2_deepcad"
-    model = importlib.import_module(model_name)
-    classifier = model.get_pn2_deepcad_model(cfg, normal_channel=False)
-    criterion = CADLoss(cfg)
+    #### Load model
+
+    # Create PointNet++
+    sys.path.append(os.path.join(root_dir, 'models','Pointnet_Pointnet2_pytorch', 'models'))
+    model = importlib.import_module(config['model_type'])
+    classifier = model.get_model_copy_author(256, normal_channel=False)
+    criterion = model.get_loss_mse()
     classifier.apply(inplace_relu)
 
+    # Load PointNet++ state dict
     state_dict = saved_model['model_state_dict']
+    # Check if model has been saved wrapped in nn.DataParallel
+    if 'module.' in next(iter(state_dict)):
+        monitor.log_and_print("Model was saved wrapped in nn.DataParallel.\nRemoving 'module.' from state dict.")
+        state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}#
     classifier.load_state_dict(state_dict)
-    monitor.log_and_print(f'\nLoaded state dict from {os.path.abspath(args.model_path)}.')
+    print(f'Loaded state dict from {args.model_path}.')
+
+    # Load DeepCAD model
+    cfg = ConfigAE('test', parse=False) # Creates config data and model and log dirs if they don't exist
+    tr_agent = TrainerAE(cfg) # Initializes CADTransformer, CADLoss, Adam and LRScheduler
+    tr_agent.load_ckpt(cfg.ckpt)
+
+
+    ####
 
     monitor.log_and_print(f"Using device: {device}\n")
     monitor.log_and_print(f"Number of devices: {torch.cuda.device_count()}")#
@@ -262,11 +222,12 @@ def main(args):
     num_workers = 0 if device.type == 'cpu' else 8
     print("Num. workers: ", num_workers, flush=True)
 
-    test_primitive_dataset = PCExtrusionSequenceDataset(DATA_DIR, 'test', cfg, verbose=True)
-    test_complex_dataset = PointCloudEmbeddingSequenceDataset(DATA_DIR, 'test', use_normals=False, verbose=True)
-    monitor.log_and_print(f"Test Dataloader: {len(test_complex_dataset)}, Test Dataloader: {len(test_complex_dataset)}")
+    test_dataset = PointCloudEmbeddingSequenceDataset(DATA_DIR, 'test', use_normals=False)
+    test_dataloader = DataLoader(test_dataset, batch_size = batch_size, num_workers = num_workers, shuffle = False)
+    monitor.log_and_print(f"Test Dataloader: {len(test_dataset)}, Test Dataloader: {len(test_dataloader)}")
 
     scores_test = PrimitiveExtrusionRunningScore(len(ALL_COMMANDS), N_ARGS, model_dir, 'test', cont=False)
+    cd_list = []
     missing_gt_pc_counter = 0
     monitor.log_and_print("### Test starts ###\n")
 
@@ -278,81 +239,57 @@ def main(args):
         "pred_args", "seq_len", "pred_seq_len",
         "cmd_count", "cmd_correct", "cmd_count_total", "cmd_correct_total",
         "per_cmd_param_count", "per_cmd_param_correct", "param_count_total", "param_correct_total",
-        "cmd_loss", "param_loss", "total_loss",
+        "cmd_loss", "param_loss", "total_loss", "mse_loss",
         ]
-
+    
+    num_samples_single_extr = 0
+    num_samples_multiple_extr = 0
     classifier.eval()
-    missing_part_data = []
-    with torch.no_grad(): # REMOVE DATALOADER
-        for i, data_complex in enumerate(test_complex_dataset):
-            sequence = data_complex['tgt_vec'].unsqueeze(0)  # (1, S, 17)
-            id = data_complex['id']
+    tr_agent.net.eval()
+    with torch.no_grad():
+        for i, data in enumerate(test_dataloader):
 
+            pc, sequence, latent_rep, id = data["pc"], data["tgt_vec"], data["z"], data["id"][0]
 
-            # Extract subcomponents of complex model
-            parts_indices = test_primitive_dataset.get_indices_for_id(id)
-            if len(parts_indices) == 0:
-                missing_part_data.append(id)
-                print(f"Missing part data for complex model {id}. Skipping this sample.", flush=True)
+            # Only Infer single sample extrusions
+            counter = 0
+            for cmd in sequence[0]:
+                if cmd[0].item() == EXT_IDX:
+                    counter += 1
+                if cmd[0].item() == EOS_IDX:
+                    break
+            if counter > 1:
+                num_samples_multiple_extr += 1
                 continue
-            parts_list = []
-            parts_list = [test_primitive_dataset.get_pc_path(part_idx) for part_idx in parts_indices]
+            else:
+                num_samples_single_extr += 1
 
-            # Sort indices, so that sequence of point clouds is correct
-            zipped = list(zip(parts_list, parts_indices))
-            zipped_sorted = sorted(zipped, key=lambda x: x[0])
-            _, parts_indices = zip(*zipped_sorted)
-            parts_indices = list(parts_indices)
 
-            bov_psl_list = []
-            part_cmd_loss_sum = 0.0
-            part_param_loss_sum = 0.0
-            for part_idx in parts_indices:
-                data_primitive = test_primitive_dataset[part_idx]
-                pc = data_primitive['pc'].unsqueeze(0)  # (1, N, 3)
-                sequence_primitive= data_primitive['sequence'].unsqueeze(0)  # (1, S, 17)
+            pc, latent_rep = pc.to(device), latent_rep.to(device)
+            pc = pc.transpose(2, 1)
+            pred, _ = classifier(pc)
+            mse_loss = criterion(pred,latent_rep)
 
-                pc = pc.transpose(2, 1)
-                pc = pc.to(device)
-                output = classifier(pc)
-
-                tgt_commands = sequence_primitive[:, :, 0]
-                tgt_args = sequence_primitive[:, :, 1:]
-
-                output["tgt_commands"] = tgt_commands
-                output["tgt_args"] = tgt_args
-
-                loss_dict = criterion(output)
-
-                cmd_loss = loss_dict['loss_cmd'].detach().cpu().item()
-                args_loss = loss_dict['loss_args'].detach().cpu().item()
-                part_cmd_loss_sum += cmd_loss
-                part_param_loss_sum += args_loss
-
-                batch_out_vec = logits2vec(output, device)
-                pred_commands = batch_out_vec[:, :, 0]
-
-                try:
-                    pred_seq_length = list(pred_commands[0]).index(EOS_IDX)
-                except Exception as e:
-                    pred_seq_length = 60
-                bov_psl_list.append((batch_out_vec.squeeze(), pred_seq_length))
+            pred = pred.unsqueeze(1) # CRITICAL: shape = (B,1,256), NOT (1,B,256) -> unsqueeze(1 not 0)
+            output = tr_agent.decode(pred)
             
-            full_model_seq = assemble_full_model_from_parts(bov_psl_list)
             tgt_commands = sequence[:, :, 0]
             tgt_args = sequence[:, :, 1:]
-    
+
             seq_length = list(tgt_commands[0]).index(EOS_IDX)
 
-            batch_out_vec = np.expand_dims(full_model_seq, axis=0)
+            output["tgt_commands"] = tgt_commands.to(device)
+            output["tgt_args"] = tgt_args.to(device)
+
+            loss_dict = tr_agent.loss_func(output)
+
+            cmd_loss = loss_dict['loss_cmd'].detach().cpu().item()
+            args_loss = loss_dict['loss_args'].detach().cpu().item()
+
+            batch_out_vec = logits2vec(output, device)
             pred_commands = batch_out_vec[:, :, 0]
             pred_args = batch_out_vec[:, :, 1:]
-
-            try:
-                pred_seq_length = list(pred_commands[0]).index(EOS_IDX)
-            except Exception as e:
-                pred_seq_length = 60
-
+            pred_seq_length = list(pred_commands[0]).index(EOS_IDX)
 
             metrics = calculate_ACC({"tgt_commands": tgt_commands,
                                     "tgt_args": tgt_args,
@@ -364,6 +301,7 @@ def main(args):
                 cd = float('nan')
             else:
                 cd = calculate_CD(batch_out_vec, gt_pc_path, id)
+                cd_list.append(cd)
 
             sample_cmd_acc = np.sum(metrics["each_cmd_acc"]) / np.sum(metrics["each_cmd_cnt"] + 1e-6)
             sample_param_acc = np.sum(metrics["each_param_acc"]) / np.sum(metrics["each_param_cnt"] + 1e-6)
@@ -384,17 +322,14 @@ def main(args):
                 selected_args = params[torch.tensor(CMD_ARGS_MASK[cmd]).bool()]
                 pred_args_list.extend(selected_args.tolist())
 
-            tgt_commands = tgt_commands.squeeze()[:seq_length].tolist()
-            pred_commands = pred_commands.squeeze()[:pred_seq_length].tolist()
-
             row = {
                 "id": id,                   # str
                 "set_id": i,           # int
                 "cmd_acc": sample_cmd_acc,         # float
                 "param_acc": sample_param_acc,     # float
                 "cd": cd,                   # float
-                "tgt_commands": tgt_commands, # torch.Tensor (60,)
-                "pred_commands": pred_commands,
+                "tgt_commands": tgt_commands.squeeze()[:seq_length].tolist(), # torch.Tensor (60,)
+                "pred_commands": pred_commands.squeeze()[:pred_seq_length].tolist(),
                 "tgt_args": tgt_args_list,         # torch.Tensor (60, 16)
                 "pred_args": pred_args_list,
                 "seq_len": seq_length,        # int
@@ -407,17 +342,18 @@ def main(args):
                 "per_cmd_param_correct": metrics["each_param_acc"].astype(int), # torch.Tensor (6×16)
                 "param_count_total": np.sum(metrics["each_param_cnt"]).astype(int), # int
                 "param_correct_total": np.sum(metrics["each_param_acc"]).astype(int), # int
-                "cmd_loss": part_cmd_loss_sum,              # float
-                "param_loss": part_param_loss_sum,          # float
-                "total_loss": part_cmd_loss_sum + part_param_loss_sum, # float
+                "cmd_loss": cmd_loss,              # float
+                "param_loss": args_loss,          # float
+                "total_loss": cmd_loss + args_loss, # float
+                "mse_loss": mse_loss.detach().cpu().item() # float
             }
             rows.append(row)
             
-            scores_test.update(metrics, part_cmd_loss_sum, part_param_loss_sum, batch_size)
+            scores_test.update(metrics, cmd_loss, args_loss, pc.shape[0])
             if args.verbose:
-                print(f"Batch {i + 1}/{len(test_complex_dataset)}: "
-                        f"Commands-Loss: {part_cmd_loss_sum:8.5f}", 
-                        f"Arguments-Loss: {part_param_loss_sum:8.5f}",
+                print(f"Batch {i + 1}/{len(test_dataloader)}: "
+                        f"Commands-Loss: {cmd_loss:8.5f}", 
+                        f"Arguments-Loss: {args_loss:8.5f}",
                         flush=True)
             # if i == 10:
             #      break
@@ -425,10 +361,12 @@ def main(args):
     scores_test.epoch_finished()
     for a in scores_test.get_metrics_list():
         monitor.log_and_print(a)
-    print(f"Missing GT PC: {missing_part_data} out of {len(test_complex_dataset)} samples", flush=True)
+    print(f"Missing GT PC: {missing_gt_pc_counter} out of {len(test_dataset)} samples", flush=True)
+    print(f"Single Extrusion Samples: {num_samples_single_extr}, Multiple Extrusion Samples: {num_samples_multiple_extr}", flush=True)
 
+    # save_test_metrics(*scores_test.get_metrics_list(), cd_list=cd_list, save_path=model_dir)
     df = pd.DataFrame(rows, columns=cols)
-    df.to_pickle(os.path.join(model_dir, "test_sample_results_primitive_on_complex_2.pkl"))
+    df.to_pickle(os.path.join(model_dir, "test_sample_results_single_extr.pkl"))
 
 def save_test_metrics(*lists, cd_list, save_path):
     test_epoch_avg_cmd_acc, test_epoch_avg_param_acc, \
