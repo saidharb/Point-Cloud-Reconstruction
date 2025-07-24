@@ -16,8 +16,6 @@ from models.DeepCAD.config.configAE import ConfigAE
 from models.DeepCAD.trainer.trainerAE import TrainerAE
 from models.DeepCAD.cadlib.macro import EOS_IDX
 
-# torch.manual_seed(42)
-
 def parse_args():
     '''PARAMETERS'''
     parser = argparse.ArgumentParser(
