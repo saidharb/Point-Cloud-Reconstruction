@@ -305,9 +305,15 @@ class PCExtrusionSequenceDataset():
 
     def get_indices_for_id(self, id):
         """
-        Returns the indices of all subcomponents of a point cloud with the given id.
+        Returns the indices of all subcomponents of a point cloud with the given id,
+        sorted lexicographically by their point cloud paths.
         """
-        return [i for i, pc_path in enumerate(self.pc) if id in os.path.basename(pc_path)]
+        indice_list = [i for i, pc_path in enumerate(self.pc) if id in os.path.basename(pc_path)]
+        indexed_paths = [(i, self.pc[i]) for i in indice_list]
+        sorted_indexed_paths = sorted(indexed_paths, key=lambda x: x[1])
+        sorted_indices = [i for i, _ in sorted_indexed_paths]
+        
+        return sorted_indices
 
     def get_pc_path(self, idx):
         return self.pc[idx] 
