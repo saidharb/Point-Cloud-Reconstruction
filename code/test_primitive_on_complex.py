@@ -295,14 +295,6 @@ def main(args):
                 missing_part_data.append(id)
                 print(f"Missing part data for complex model {id}. Skipping this sample.", flush=True)
                 continue
-            parts_list = []
-            parts_list = [test_primitive_dataset.get_pc_path(part_idx) for part_idx in parts_indices]
-
-            # Sort indices, so that sequence of point clouds is correct
-            zipped = list(zip(parts_list, parts_indices))
-            zipped_sorted = sorted(zipped, key=lambda x: x[0])
-            _, parts_indices = zip(*zipped_sorted)
-            parts_indices = list(parts_indices)
 
             bov_psl_list = []
             part_cmd_loss_sum = 0.0
@@ -428,7 +420,7 @@ def main(args):
     print(f"Missing GT PC: {missing_part_data} out of {len(test_complex_dataset)} samples", flush=True)
 
     df = pd.DataFrame(rows, columns=cols)
-    df.to_pickle(os.path.join(model_dir, "test_sample_results_primitive_on_complex_2.pkl"))
+    df.to_pickle(os.path.join(model_dir, "test_sample_results_primitive_on_complex.pkl"))
 
 def save_test_metrics(*lists, cd_list, save_path):
     test_epoch_avg_cmd_acc, test_epoch_avg_param_acc, \
