@@ -20,6 +20,8 @@ from scipy.spatial import cKDTree as KDTree
 import random
 import pandas as pd
 
+# Testing SEM on primitive and simple models
+
 def parse_args():
     '''PARAMETERS'''
     parser = argparse.ArgumentParser(

@@ -21,6 +21,8 @@ from scipy.spatial import cKDTree as KDTree
 import random
 import pandas as pd
 
+# Testing SEM on simple and complex models by infering primitives
+
 # In this script, the primitive end-to-end model is tested in the task of
 # reassembling complex models. I.e. the model is give the components of a complex model
 # and iteratively predicts the components, which are manually reassembled afterwards and

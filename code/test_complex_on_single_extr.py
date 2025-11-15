@@ -21,6 +21,8 @@ import random
 import pickle
 import pandas as pd
 
+# Testing MEM on simple models
+
 def parse_args():
     '''PARAMETERS'''
     parser = argparse.ArgumentParser(

@@ -21,6 +21,8 @@ import random
 import pandas as pd
 import open3d as o3d
 
+# Testing SEM on simple models
+
 def parse_args():
     '''PARAMETERS'''
     parser = argparse.ArgumentParser(

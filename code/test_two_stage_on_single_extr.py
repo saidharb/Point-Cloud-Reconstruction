@@ -24,6 +24,8 @@ import sys
 from models.DeepCAD.config.configAE import ConfigAE
 from models.DeepCAD.trainer.trainerAE import TrainerAE
 
+# Testing baseline model on simple models
+
 def parse_args():
     '''PARAMETERS'''
     parser = argparse.ArgumentParser(
