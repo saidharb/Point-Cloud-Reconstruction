@@ -50,7 +50,10 @@ src/
 **/*.h5
 
 # json
-**/*.json
+# The dataset (cad_json/, train_val_test_split.json, ...) is already covered by
+# /data above; a blanket **/*.json also excluded pyrightconfig.json and any future
+# repository config, so only the machine-specific leftovers are listed here.
+.vscode/
 
 # Experiment results
 notebooks/experiments/

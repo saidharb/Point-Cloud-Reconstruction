@@ -60,12 +60,13 @@ def test_cad_vec_lat_rep_match(split):
     
     dataset = PointCloudEmbeddingSequenceDataset(DATA_DIR, split)
     idx = random.randint(0, len(dataset) - 1)
-    _, lat_rep, cad_vec = dataset[idx]
+    data = dataset[idx]
+    lat_rep, cad_vec = data['z'], data['tgt_vec']
     command = cad_vec[:, 0]
     args = cad_vec[:, 1:]
     cad_vec = {"command": command, "args": args}
 
-    cfg = ConfigAE('test')
+    cfg = ConfigAE('test', parse=False) # parse=True would consume pytest's argv
     tr_agent = TrainerAE(cfg)
     tr_agent.load_ckpt(cfg.ckpt)
     tr_agent.net.eval()

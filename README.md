@@ -9,6 +9,8 @@ The DeepCAD model from the [DeepCAD: A Deep Generative Network for Computer-Aide
 ### Data
 First you can download the data from the [DeepCAD dataset](http://www.cs.columbia.edu/cg/deepcad/data.tar) and extract it in the `data` folder in the main directory.
 
+The derived extrusion-segmentation data described in [Extrusion Segmentation Dataset](#extrusion-segmentation-dataset) (`pc_from_vec`, `pc_from_vec_labels`, `pc_extrusion`, `pc_extrusion_labels`) is published separately so it does not have to be regenerated: TODO(DOI) — add the data repository link and DOI here once it is minted.
+
 ### Turn CAD Sequences into Point Clouds
 To convert CAD sequences from the DeepCAD dataset into point clouds, use the `json2pc.py` script:
 ```bash
@@ -27,6 +29,105 @@ $ cd models/DeepCAD
 $ python test.py --proj_dir "../../data/latent" --exp_name "pretrained" --mode "enc" --ckpt 1000 --data_root "../../data"  
 ```
 The pretrained model will encode the CAD sequences and save the results in the `data/latent/pretrained/results` directory.
+
+## Extrusion Segmentation Dataset
+The baseline pipeline maps a whole point cloud to a whole CAD sequence (the *monolithic* model, MEM). The extrusion segmentation model (SEM) instead splits a point cloud into one cloud per extrusion and predicts a short CAD subsequence for each. The data for this is derived from the DeepCAD dataset in two steps.
+
+```
+cad_json ──json2pc.py──> pc_cad                                       (baseline / MEM)
+
+cad_json ──DeepCAD──> cad_vec ──code/create_data.py──> pc_from_vec
+                                                       pc_from_vec_labels
+                                  └──code/create_extr_data.py──> pc_extrusion
+                                                                 pc_extrusion_labels  (SEM)
+```
+
+The second script consumes the output of the first, so they must be run **in this order**. Both are run from the repository root and take a `--data-root` argument (default `data`, resolved relative to the current working directory, matching `pc2cad.py` and `code/train.py`):
+
+```bash
+$ export PYTHONPATH=$(pwd):$PYTHONPATH
+$ python code/create_data.py --data-root data
+$ python code/create_extr_data.py --data-root data
+```
+
+Both scripts write into `--data-root` and overwrite whatever is already there, so point them at a scratch directory if you want to keep the released data intact.
+
+Each script prints a running failure count while it works and a `N of M samples failed` summary with the most common exception types at the end. Individual samples can legitimately fail on malformed CAD, so the broad exception handler stays, but a failure rate above 1% is treated as systematic and the script exits non-zero.
+
+### `code/create_data.py`
+Rebuilds each model from its `cad_vec` sequence with the OpenCASCADE kernel, samples a ground-truth cloud from the whole solid and one cloud per extrusion, keeps only the per-extrusion points that lie within `epsilon = 0.005` of a ground-truth point, and resamples the survivors to a fixed 10,000 points. It also repairs extrusion commands whose numericalised distance or scale collapsed to zero, writing the corrected sequence back into `cad_vec`.
+
+Outputs:
+
+| Path | Contents |
+|---|---|
+| `pc_from_vec/<bucket>/<id>.ply` | 10,000 points sampled from the whole model |
+| `pc_from_vec_labels/<bucket>/<id>.h5` | per-point extrusion labels and the padded subsequence of every extrusion |
+
+`pc_from_vec_labels/<bucket>/<id>.h5`:
+
+| Dataset | Shape | dtype | Meaning |
+|---|---|---|---|
+| `labels` | `(10000,)` | `int64` | extrusion id of each point in the matching `.ply`, in file order |
+| `sequences/<k>` | `(60, 17)` | `int64` | the CAD subsequence of extrusion `k`, EOS-padded to the full length; `k` runs over `0 .. n_extrusions-1` |
+
+**Note that `labels` need not contain every `k`.** If the proximity filter removes all points of an extrusion, that extrusion has no label in `labels` while its subsequence is still stored under `sequences/<k>`.
+
+### `code/create_extr_data.py`
+Partitions each `pc_from_vec` cloud by its labels and writes one point cloud plus one CAD subsequence per surviving extrusion. It needs all 10,000 points and states that sample size explicitly, and it seeds the point subsample so a regeneration is deterministic.
+
+Outputs:
+
+| Path | Contents |
+|---|---|
+| `pc_extrusion/<bucket>/<id>/<id>_<j>.ply` | the points of the `j`-th surviving extrusion |
+| `pc_extrusion_labels/<bucket>/<id>/<id>_<j>.h5` | that extrusion's id and CAD subsequence |
+
+`pc_extrusion_labels/<bucket>/<id>/<id>_<j>.h5`:
+
+| Dataset | Shape | dtype | Meaning |
+|---|---|---|---|
+| `extrusion_id` | scalar | `int64` | the extrusion this cloud was sampled from |
+| `sequence` | `(N, 17)` | `int64` | that extrusion's CAD subsequence, truncated at and including the first EOS |
+
+**`j` is a file index, not an extrusion id.** The filenames are always contiguous (`_0`, `_1`, `_2`, …) so that the paths of the published data stay stable, but if an extrusion lost all of its points the ids skip a value. The authoritative id is the `extrusion_id` dataset inside the `.h5`: a model whose labels are `[0, 1, 3, 4, 6]` produces files `_0 .. _4` carrying `extrusion_id` `0, 1, 3, 4, 6`.
+
+### Validating the dataset
+Two scripts in the repository root check the extrusion pairing. **They answer different questions and are not interchangeable.**
+
+`check_extrusion_pairing.py` **characterises the source data.** It reads `pc_from_vec_labels/` and reports which models lost an extrusion to the proximity filter, and how many samples the enumeration-index bug described in [Known issues and corrections](#known-issues-and-corrections) would therefore affect. Those numbers are a property of `pc_from_vec_labels` and are **identical before and after any fix** — a non-zero "MISPAIRED" count here does *not* mean the generated data is wrong. This is not a post-fix verifier.
+
+```bash
+$ python check_extrusion_pairing.py --data-root data
+==============================================================
+models scanned                        177,776
+models with a dropped extrusion           587
+  - dropped at the tail (harmless)        162
+  - dropped mid-sequence (BAD)            425
+extrusions with no surviving points     1,015
+MISPAIRED point cloud / sequence        1,137
+==============================================================
+```
+
+This is the expected output for the released data: 425 models and 1,137 samples *would have been* mispaired by the original generator, and the script reports the same figures after the correction because it never looks at the generated data.
+
+`verify_extrusion_pairing.py` **verifies the generated data.** It reads `pc_extrusion_labels/` and compares every `extrusion_id` and `sequence` on disk against the subsequence the cloud should be paired with. It exits non-zero on any mismatch, so it is the one to run after a regeneration or before a release. `--check-clouds` additionally compares the `.ply` point counts against the label groups, which confirms the cloud and the sequence describe the same extrusion.
+
+```bash
+$ python verify_extrusion_pairing.py --data-root data
+==============================================================
+models verified                       177,776
+samples verified                      362,225
+MISMATCHED point cloud / sequence           0
+==============================================================
+all point clouds are paired with the correct CAD subsequence.
+$ echo $?
+0
+```
+
+This is the expected output for the released data. A full pass takes roughly half an hour.
+
+Both take `--report <file.csv>` to dump their findings.
 
 ## PointNet++
 Until this point, the CAD-sequence dataset is downloaded, the CAD-sequences are converted to point clouds and the CAD-sequences are encoded into the latent space by the DeepCAD model. The next step is to train the PointNet++ model in a regression task on the point clouds with the latent representation of the CAD-sequences as targets. PointNet++ is from the paper [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413) NIPS 2017 by Qi et al. and for this project the [PyTorch version](https://github.com/yanx27/Pointnet_Pointnet2_pytorch) will be used and modified (cf. [CHANGELOG.md](https://github.com/saidharb/Point-Cloud-Reconstruction/blob/main/models/Pointnet_Pointnet2_pytorch/CHANGELOG.md)). 
@@ -134,6 +235,28 @@ In order to check if the datasets comprise of all data and the data alligns (i.e
 ```bash
 $ pytest tests/
 ```
+
+## Known issues and corrections
+An audit carried out before the dataset release found one correctness bug in the generated data and several issues that prevented the committed code from regenerating it. The released data is corrected; the entries below record what was wrong, what the effect was, and what changed.
+
+### Extrusion / subsequence mispairing (corrected in the released data)
+`code/create_extr_data.py` grouped the points of a cloud with `np.unique(labels)`, which returns only the labels that are actually present, and then used the *enumeration index* `j` to look up the CAD subsequence: `sequences[str(j)]`. When an extrusion lost all of its points to the proximity filter in `code/create_data.py`, its label was missing from `labels`, `np.unique` returned a sequence with a gap, and every surviving extrusion after the gap was paired with its neighbour's subsequence.
+
+For a model whose surviving labels are `[0, 1, 3, 4, 6]`, files `_2`, `_3`, `_4` were stored with the subsequences of extrusions 2, 3, 4 instead of 3, 4, 6.
+
+- **Scope:** 1,137 of 362,225 samples, spread over 425 of 177,776 models (a further 162 models lost only their *last* extrusion, which is harmless because no index shifts).
+- **What was affected:** only the `extrusion_id` and `sequence` datasets in `pc_extrusion_labels/`. The `.ply` clouds in `pc_extrusion/` were always partitioned correctly and were never touched.
+- **Correction:** the affected label files were rewritten in place with `python check_extrusion_pairing.py --data-root data --fix`. `code/create_extr_data.py` now returns the label values from `split_pc_by_labels` and uses them for both the lookup and the stored `extrusion_id`, so a regeneration produces the corrected pairing directly. Run `verify_extrusion_pairing.py` to confirm.
+
+### The committed generator could not reproduce the released data
+Three separate defects meant that running the published scripts as committed did not regenerate the published data. All three are fixed.
+
+- **`N_POINTS` was 2048, but `pc_from_vec` holds 10,000 points.** `create_extr_data.py` asserts on the cloud size, so every sample raised — and because the exception was swallowed (below) the run reported no error and produced an empty output directory. `code/dataset.py` now separates `N_POINTS` (the generation size, 10,000) from `N_POINTS_TRAIN` (the training sample size, 2048, unchanged), the dataset classes take an `n_points` override, and the generation scripts state the size they need explicitly instead of inheriting a shared global.
+- **Exceptions were swallowed.** Both generators wrapped their per-sample work in a bare `except Exception` that recorded the error into a dict and never failed the run, which is how the systematic failure above went unnoticed. The broad catch is kept — individual samples do legitimately fail on malformed CAD — but the scripts now print a running failure count, summarise `N of M samples failed` with the most common exception types, and exit non-zero above a 1% failure rate.
+- **Data paths were hardcoded to `../data`** and both scripts had to be run from inside `code/`. Both now take `--data-root` (default `data`, relative to the current working directory, matching `pc2cad.py` and `code/train.py`) and are run from the repository root.
+
+### Point subsampling was unseeded
+The datasets subsample points with the global `random` module. During training this is a legitimate augmentation, but during generation it permuted the point order of the output files, so two runs of the generator produced clouds that were not byte-identical. The dataset classes now accept an optional `seed`; the default is still unseeded so training is unaffected, and the generation scripts pass a fixed seed.
 
 ## Other
 ### Experimental notebooks

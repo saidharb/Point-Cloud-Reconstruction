@@ -9,7 +9,7 @@ import json
 import pickle
 import matplotlib.pyplot as plt
 
-from dataset import PointCloudEmbeddingSequenceDataset
+from dataset import PointCloudEmbeddingSequenceDataset, N_POINTS_TRAIN
 from models.DeepCAD.cadlib.visualize import vec2CADsolid
 from OCC.Core.BRepCheck import BRepCheck_Analyzer
 from OCC.Extend.DataExchange import write_step_file
@@ -22,13 +22,28 @@ from models.DeepCAD.cadlib.visualize import CADsolid2pc
 from models.DeepCAD.utils.pc_utils import write_ply
 import open3d as o3d
 from scipy.spatial import cKDTree
+from collections import Counter
+
+# This script only reads the CAD sequence and the id from the dataset, never the
+# sampled point cloud, but the dataset samples one anyway. pc_cad holds 8096 points,
+# so the generation size N_POINTS (10000) is not a legal sample size here; state the
+# training size explicitly rather than inheriting whatever the default happens to be.
+N_POINTS_SAMPLE = N_POINTS_TRAIN
+
+# Fixed seed for the point subsample, so that regeneration is deterministic.
+SEED = 0
+
+# Exit non-zero if more than this fraction of the samples fail.
+MAX_FAILURE_RATE = 0.01
 
 def parse_args():
     '''PARAMETERS'''
     parser = argparse.ArgumentParser(
         'Create point clouds with extrusion labels from CAD seqeunces'
     )
-    
+    parser.add_argument('--data-root', type=str, default='data',
+                        help='data directory, relative to the current working directory')
+
     return parser.parse_args()
 
 
@@ -175,11 +190,11 @@ def get_extrusion_distance_per_extrusion(data):
                 distances_per_extrusion.append(extrusion_distances)
     return distances_per_extrusion
 
-def check_sequence(sequence, id):
+def check_sequence(sequence, id, data_root):
     """
     Checks if the extrude distances are not zero, otherwise error.
     """
-    json_path = os.path.join("..", "data", "cad_json", id[:4], id + ".json")  ### REFACTOR
+    json_path = os.path.join(data_root, "cad_json", id[:4], id + ".json")
     flag = False
 
     with open(json_path, "r") as file:
@@ -245,30 +260,36 @@ def adjust_pointcloud_to_fixed_size(points, labels, target_n=10000):
 def main(args):
     # Data creation settings
 
-    DATA_DIR = "../data"
+    DATA_DIR = args.data_root
     nr_points_gt = 40000
     nr_points_ext = 40000
     epsilon = 0.005
     num_points_seg = 10000
 
-    dataset_train = PointCloudEmbeddingSequenceDataset("../data", 'train', use_normals=False)
-    dataset_val = PointCloudEmbeddingSequenceDataset("../data", 'validation', use_normals=False)
-    dataset_test = PointCloudEmbeddingSequenceDataset("../data", 'test', use_normals=False)
+    dataset_train = PointCloudEmbeddingSequenceDataset(DATA_DIR, 'train', use_normals=False,
+                                                       n_points=N_POINTS_SAMPLE, seed=SEED)
+    dataset_val = PointCloudEmbeddingSequenceDataset(DATA_DIR, 'validation', use_normals=False,
+                                                     n_points=N_POINTS_SAMPLE, seed=SEED)
+    dataset_test = PointCloudEmbeddingSequenceDataset(DATA_DIR, 'test', use_normals=False,
+                                                      n_points=N_POINTS_SAMPLE, seed=SEED)
     datasets = [dataset_train, dataset_val, dataset_test]
 
     error_dict = {}
+    error_types = Counter()
     update_dict = {}
+    n_total = 0
 
     for dataset in datasets:
         length = len(dataset)
         
         for i in range(length): #:
-            
+            n_total += 1
+
             try:
                 data = dataset[i]
                 sequence = data['tgt_vec'].numpy()
                 id = data['id']
-                sequence, flag = check_sequence(sequence, id)
+                sequence, flag = check_sequence(sequence, id, DATA_DIR)
 
                 if flag: # If sequence contains errors, update it in the orignal targets/h5 file
                     h5_path = dataset.get_cad_seq_path(i)
@@ -278,9 +299,9 @@ def main(args):
                                 end = k
                                 break
                         f.create_dataset("vec", data=sequence[:end + 1], compression='gzip')
-                    update_dict[str(i)] = f"Updated sequence for {h5_path} with id {id}."
+                    update_dict[f"{dataset.split}/{i}"] = f"Updated sequence for {h5_path} with id {id}."
         
-                print(f"\rProcessing {i + 1}/{length} | ID: {id}", end="")
+                print(f"\rProcessing {dataset.split} {i + 1}/{length} | ID: {id} | {len(error_dict)} failed", end="")
                 sys.stdout.flush()
         
                 pc_path = os.path.join(DATA_DIR, "pc_from_vec", id[:4], id + ".ply")
@@ -296,7 +317,8 @@ def main(args):
                 save_labels_with_ext(labels, extrusions, h5_path)
 
             except Exception as e:
-                error_dict[str(i)] = e
+                error_dict[f"{dataset.split}/{i}"] = repr(e)
+                error_types[type(e).__name__] += 1
         print()
 
     # Save
@@ -305,11 +327,19 @@ def main(args):
     with open("update_dict.pkl", "wb") as f:
         pickle.dump(update_dict, f)
 
+    n_failed = len(error_dict)
+    print(f"{n_failed} of {n_total} samples failed")
+    for name, count in error_types.most_common(5):
+        print(f"  {count:>8,}  {name}")
+
+    failure_rate = n_failed / n_total if n_total else 0.0
+    if failure_rate > MAX_FAILURE_RATE:
+        print(f"failure rate {failure_rate:.2%} exceeds the {MAX_FAILURE_RATE:.0%} threshold "
+              f"-- this looks systematic, not like malformed CAD", file=sys.stderr)
+        sys.exit(1)
+
 
 
 if __name__ == '__main__':
     args = parse_args()
     main(args)
-    
-# TODO
-# README

@@ -1,0 +1,9 @@
+{
+  "exclude": [
+    "**/pointnet_venv",
+    "**/__pycache__",
+    "**/.venv",
+    "**/.git",
+    "**/node_modules"
+  ]
+}
