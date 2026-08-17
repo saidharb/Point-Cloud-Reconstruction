@@ -11,19 +11,19 @@ import json
 import random
 import sys
 sys.path.append("..")
-from trainer.base import BaseTrainer
-from utils import cycle, ensure_dirs, ensure_dir, read_ply, write_ply
-try:
-    from pointnet2_ops.pointnet2_modules import PointnetFPModule, PointnetSAModule
-except Exception as e:
-    print("need to install https://github.com/erikwijmans/Pointnet2_PyTorch")
-    exit()
+from models.DeepCAD.trainer.base import BaseTrainer
+from models.DeepCAD.utils import cycle, ensure_dirs, ensure_dir, read_ply, write_ply
+# try:
+from models.Pointnet2_PyTorch.pointnet2_ops_lib.pointnet2_ops.pointnet2_modules import PointnetFPModule, PointnetSAModule
+# except Exception as e:
+#     print("need to install https://github.com/erikwijmans/Pointnet2_PyTorch")
+#     exit()
 
 
 class Config(object):
     n_points = 2048
     batch_size = 128
-    num_workers = 4
+    num_workers = 0
     nr_epochs = 200
     lr = 1e-4
     lr_step_size = 50
@@ -142,10 +142,10 @@ class PointNet2(nn.Module):
 
 class TrainAgent(BaseTrainer):
     def build_net(self, config):
-        self.net = PointNet2().cuda()
+        self.net = PointNet2()#.cuda()
 
     def set_loss_function(self):
-        self.criterion = nn.MSELoss().cuda()
+        self.criterion = nn.MSELoss()#.cuda()
 
     def set_optimizer(self, config):
         """set optimizer and lr scheduler used in training"""
@@ -153,8 +153,8 @@ class TrainAgent(BaseTrainer):
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, config.lr_step_size)
 
     def forward(self, data):
-        points = data["points"].cuda()
-        code = data["code"].cuda()
+        points = data["points"]#.cuda()
+        code = data["code"]#.cuda()
 
         pred_code = self.net(points)
 
