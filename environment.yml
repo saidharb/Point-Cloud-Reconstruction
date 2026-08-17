@@ -1,0 +1,22 @@
+name: myenv
+channels:
+  - https://repo.anaconda.com/pkgs/main
+  - https://repo.anaconda.com/pkgs/r
+dependencies:
+  - python=3.9
+  - pythonocc-core=7.5.1
+  - cython
+  - h5py
+  - joblib
+  - matplotlib
+  - numpy
+  - pillow
+  - plyfile
+  - scikit-learn
+  - scipy
+  - tensorboardx
+  - tqdm
+  - trimesh
+  - jupyter
+  - ninja
+prefix: /opt/anaconda3/envs/myenv

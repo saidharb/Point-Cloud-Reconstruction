@@ -62,3 +62,19 @@ notebooks/experiments/
 # Figures
 figures
 **/*.png
+
+# Trained models and run results (weights, metrics, checkpoints)
+models/trained_models/
+
+# Third-party: erikwijmans/Pointnet2_PyTorch, cloned locally (see README)
+models/Pointnet2_PyTorch/
+
+# Paper / presentation material (2.2 GB of pptx, blend, pdf, mp4)
+ISPRS_Toronto_26/
+
+# Scratch listings and machine-specific package dumps
+all-files.txt
+explicit-packages.txt
+
+# Mesh exports without file extension
+notebooks/omega_from_primitives
