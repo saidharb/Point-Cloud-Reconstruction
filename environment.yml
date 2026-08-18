@@ -1,4 +1,4 @@
-name: myenv
+name: pointnet_venv
 channels:
   - https://repo.anaconda.com/pkgs/main
   - https://repo.anaconda.com/pkgs/r
@@ -19,4 +19,3 @@ dependencies:
   - trimesh
   - jupyter
   - ninja
-prefix: /opt/anaconda3/envs/myenv

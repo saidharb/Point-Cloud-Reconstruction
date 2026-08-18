@@ -1,10 +1,37 @@
-# Point Cloud to CAD Model Reconstruction using Deep Learning
-GitHub repository for my Masters Thesis at IGP, TU Braunschweig
+# Extrusion Segmentation Strategy to improve CAD Reconstruction from Point Cloud
 
-The goal of this project is to predict CAD sequences from input point clouds. The pipeline consists of PointNet++ to encode the point clouds into a 256-dimensional latent space, and the DeepCAD decoder to decode the latent vectors into the CAD-sequence.
+Code and dataset tooling for:
+
+> Harb, S., Maboudi, M., and Gerke, M.: **Extrusion Segmentation Strategy to improve CAD
+> Reconstruction from Point Cloud**, *The International Archives of the Photogrammetry, Remote
+> Sensing and Spatial Information Sciences*, XLIX-B2-2026, 189-197, 2026.
+> [doi:10.5194/isprs-archives-XLIX-B2-2026-189-2026](https://doi.org/10.5194/isprs-archives-XLIX-B2-2026-189-2026)
+
+Developed at the Institute of Geodesy and Photogrammetry (IGP), TU Braunschweig.
+
+The pipeline predicts CAD command sequences from point clouds: PointNet++ encodes a point cloud
+into a 256-dimensional latent space, and the DeepCAD decoder decodes the latent vector into a
+CAD sequence. **The paper describes the method, the segmentation strategy and the results.**
+This README covers only what the paper does not: how to obtain the data, how to regenerate the
+derived dataset, and how to run each script.
+
+## Repository layout
+
+| Path | Contents |
+|---|---|
+| `code/` | Training, testing and dataset-generation scripts for this project |
+| `models/DeepCAD/` | Vendored [DeepCAD](https://github.com/ChrisWu1997/DeepCAD), modified (see its `CHANGELOG.md`) |
+| `models/Pointnet_Pointnet2_pytorch/` | Vendored [PointNet++](https://github.com/yanx27/Pointnet_Pointnet2_pytorch), modified (see its `CHANGELOG.md`) |
+| `notebooks/` | Exploratory notebooks used during development |
+| `tests/` | Dataset consistency checks, run with `pytest` |
+| `utils/` | Standalone helper scripts |
+| `data/` | Datasets (not tracked; see [Data](#data)) |
+| `check_extrusion_pairing.py`, `verify_extrusion_pairing.py` | Dataset validation, see [Validating the dataset](#validating-the-dataset) |
+| `pc2cad.py` | Full point cloud to CAD inference pipeline |
+| `*.job` | SLURM submission scripts used for the cluster runs |
 
 ## DeepCAD
-The DeepCAD model from the [DeepCAD: A Deep Generative Network for Computer-Aided Design Models](https://arxiv.org/abs/2105.09492) ICCV 2021 by Wu et al. will serve in two purposes: First as an encoder for CAD sequences and second as the decoder for the point cloud latent representations. For the purpose of this project the original code will be modified (cf. [CHANGELOG.md](https://github.com/saidharb/Point-Cloud-Reconstruction/blob/main/models/DeepCAD/CHANGELOG.md)).
+The DeepCAD model from the [DeepCAD: A Deep Generative Network for Computer-Aided Design Models](https://arxiv.org/abs/2105.09492) ICCV 2021 by Wu et al. serves two purposes: first as an encoder for CAD sequences and second as the decoder for the point cloud latent representations. For the purpose of this project the original code was modified (cf. [CHANGELOG.md](https://github.com/saidharb/Point-Cloud-Reconstruction/blob/main/models/DeepCAD/CHANGELOG.md)).
 
 ### Data
 First you can download the data from the [DeepCAD dataset](http://www.cs.columbia.edu/cg/deepcad/data.tar) and extract it in the `data` folder in the main directory.
@@ -130,19 +157,26 @@ This is the expected output for the released data. A full pass takes roughly hal
 Both take `--report <file.csv>` to dump their findings.
 
 ## PointNet++
-Until this point, the CAD-sequence dataset is downloaded, the CAD-sequences are converted to point clouds and the CAD-sequences are encoded into the latent space by the DeepCAD model. The next step is to train the PointNet++ model in a regression task on the point clouds with the latent representation of the CAD-sequences as targets. PointNet++ is from the paper [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413) NIPS 2017 by Qi et al. and for this project the [PyTorch version](https://github.com/yanx27/Pointnet_Pointnet2_pytorch) will be used and modified (cf. [CHANGELOG.md](https://github.com/saidharb/Point-Cloud-Reconstruction/blob/main/models/Pointnet_Pointnet2_pytorch/CHANGELOG.md)). 
+Until this point, the CAD-sequence dataset is downloaded, the CAD-sequences are converted to point clouds and the CAD-sequences are encoded into the latent space by the DeepCAD model. The next step is to train the PointNet++ model in a regression task on the point clouds with the latent representation of the CAD-sequences as targets. PointNet++ is from the paper [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413) NIPS 2017 by Qi et al. and for this project the [PyTorch version](https://github.com/yanx27/Pointnet_Pointnet2_pytorch) was used and modified (cf. [CHANGELOG.md](https://github.com/saidharb/Point-Cloud-Reconstruction/blob/main/models/Pointnet_Pointnet2_pytorch/CHANGELOG.md)). 
 
 ### Setup
-As a good practice before executing the code, create a new conda environment and install all dependencies from the root repository:
+The project targets **Python 3.9**. Create the conda environment from `environment.yml`, which
+pins the interpreter and `pythonocc-core` (the OpenCASCADE binding that `code/create_data.py`
+requires and that pip cannot provide):
+
 ```bash
-$ conda create -n <name of environment>
-$ conda activate <name of environment>
+$ conda env create -f environment.yml
+$ conda activate pointnet_venv
 $ pip install -r requirements.txt
 ```
-If there are problems with pip finding an appropriate version for open3d, use conda-forge to install it:
+
+If pip cannot find an appropriate version of open3d, install it from conda-forge:
 ```bash
 $ conda install -c conda-forge open3d
 ```
+
+PointNet++ needs its CUDA extensions compiled; follow the build instructions of the vendored
+[Pointnet_Pointnet2_pytorch](models/Pointnet_Pointnet2_pytorch/README.md) for a GPU setup.
 
 ### Train PointNet++
 In order to train PointNet++ a training script is developed, which will dynamically adapt to CPU or GPU. Before executing the training script, two environment variables have to be set, in particular the `PYTHONPATH` and the `WANDB_API_KEY`, if training should be tracked using Weight and Biases. The API key can be obtained from your user account at WandB. Set the environment variables from the root repository like this:
@@ -169,13 +203,13 @@ $ python code/train.py
 | `--verbose`        | `bool`  | `False`      | Output per batch metrics                                                   |
 | `--wandb`          | `bool`  | `False`      | Enable WandB tracking                                                      |
 | `--name`           | `str`   | `'test_run'` | Name of WandB run                                                          |
-| `--output_dir`     | `str`   | required     | Name of of the model save directory relative to root directory             |
-| `--lr_type`     | `str`   | `"step"`, `"step_adv"` or `"cosine"`     | Learning rate type: `step` for a simple step learning rate scheduler, `step_adv` for reducing learning rate on val_loss plateau or `cosine` for cosine annealing with warm restarts|
+| `--output_dir`     | `str`   | required     | Name of the model save directory relative to root directory             |
+| `--lr_type`     | `str`   | `'step'`     | Learning rate schedule, one of `step`, `step_adv` or `cosine`: `step` for a simple step learning rate scheduler, `step_adv` for reducing learning rate on val_loss plateau or `cosine` for cosine annealing with warm restarts|
 | `--msg`     | `bool`   | `False`     | Use multi-scale-grouping instead of single-scale-grouping       |
-| `--aug`     | `bool`   | `False`     | Turn on point cloud agumentation (random dropout, scale and shift)       |
+| `--aug`     | `bool`   | `False`     | Turn on point cloud augmentation (random dropout, scale and shift)       |
                         
 
-The training script will create a directory `models/trained_models` where all training runs are saved including the best and last model, checkpoint models, logging information and a csv file containing the metrics. The learning rate will be halfed, if the validation loss did not decrease for the number of epochs specified in `lr_patience`.
+The training script will create a directory `models/trained_models` where all training runs are saved including the best and last model, checkpoint models, logging information and a csv file containing the metrics. The learning rate is halved if the validation loss did not decrease for the number of epochs specified in `lr_patience`.
 
 ### Test PointNet++
 You can test the performance of PointNet++ to encode point clouds into the same latent space as the CAD-sequences using the `code/test.py` script:
@@ -190,8 +224,48 @@ The script will create a `test.log` and a `test_metrics_<model_name>.csv` file w
 | `--batch_size`     | `int`   | `24`         | Batch size                                                                 |
 | `--verbose`        | `bool`  | `False`      | Output per batch metrics                                                   |
 
+## Extrusion Segmentation Models
+The scripts below implement the monolithic (MEM) and extrusion segmentation (SEM) models that
+the paper compares. **See the paper for the strategy, the model variants and the results** — this
+section only records which script consumes which dataset, so the right one can be found.
+
+All training scripts take the same arguments as [`code/train.py`](#train-pointnet) and all testing
+scripts the same as [`code/test.py`](#test-pointnet), plus `--gpu`.
+
+### Training
+
+| Script | Input | Target |
+|---|---|---|
+| `code/train_pn2_ext_seg.py` | `pc_from_vec` cloud | per-point extrusion label (the segmentation stage) |
+| `code/train_primitive_extr.py` | `pc_extrusion` cloud of one extrusion | that extrusion's CAD subsequence |
+| `code/train_complex_extr.py` | `pc_from_vec` cloud of a whole model | the model's full CAD sequence |
+
+```bash
+$ python code/train_pn2_ext_seg.py --output_dir "partseg_run" --gpu --verbose
+```
+
+### Testing
+The test scripts are named `test_<model>_on_<evaluation set>`, where *simple* models consist of a
+single extrusion and *complex* models of several. Each writes `test_metrics.csv`,
+`test_metrics.npz` and `test_per_sl_metrics.pkl` into the model directory.
+
+| Script | Model | Evaluated on |
+|---|---|---|
+| `code/test_pn2_ext_seg.py` | segmentation network | extrusion segmentation accuracy |
+| `code/test_primitive_extr.py` | SEM | single-extrusion clouds |
+| `code/test_complex_extr.py` | MEM | simple and complex models |
+| `code/test_primitive_on_single_extr.py` | SEM | simple models |
+| `code/test_primitive_on_complex.py` | SEM | simple and complex models, by inferring primitives |
+| `code/test_complex_on_single_extr.py` | MEM | simple models |
+| `code/test_two_stage_on_single_extr.py` | two-stage baseline | simple models |
+| `code/test_two_stage_on_complex.py` | two-stage baseline | simple and complex models |
+| `code/test_MEM_on_complex.py` | MEM | complex models, writes `test_results_MEM_complex.pkl` |
+| `code/test_SEM_on_complex.py` | SEM | complex models, writes `test_results_SEM_complex.pkl` |
+
+The last two produce the MEM/SEM comparison reported in the paper.
+
 ## PC to CAD Pipeline
-The script ```pc2cad.py``` enables the full inference pipeline using PointNet++ as the encoder for point clouds and the DeepCAD decoder to decode them into CAD-sequences. Previously DeepCAD was trained on auto-encoding CAD-sequences and PointNet++ was trained on encoding point clouds into the same latent space as DeepCAD. The pre-trained DeepCAD model should be within ```data/latent/pretrained/model/ckpt_epoch1000.pth```. During inference metrics like the PointNet++ MSE-Loss and the DeepCAD Command- and Argument-Loss are recorded and predicted latent representation and CAD-sequence are saved within the model directory under ```results```. Run the script using the following command from root:
+The script `pc2cad.py` enables the full inference pipeline using PointNet++ as the encoder for point clouds and the DeepCAD decoder to decode them into CAD-sequences. Previously DeepCAD was trained on auto-encoding CAD-sequences and PointNet++ was trained on encoding point clouds into the same latent space as DeepCAD. The pre-trained DeepCAD model should be within `data/latent/pretrained/model/ckpt_epoch1000.pth`. During inference metrics like the PointNet++ MSE-Loss and the DeepCAD Command- and Argument-Loss are recorded and predicted latent representation and CAD-sequence are saved within the model directory under `results`. Run the script using the following command from root:
 
 ```bash
 $ python pc2cad.py --exp_name "test_experiment" --model_path "path/to/model.pth"
@@ -208,16 +282,16 @@ $ python pc2cad.py --exp_name "test_experiment" --model_path "path/to/model.pth"
 | `--phase` | `str`  | `'train'` | Which dataset split to use (`train`, `validation`, or `test`) |
 
 ### Interactive PC to CAD Pipeline and Loss Visualization
-In the notebook ```notebooks/pc2cad.ipynb``` one can interactively encode point clouds into latent representations, decode them into CAD-sequences and analyse, how the Command- and Argument-Loss are calculated in thorough detail. Furthermore all CAD-sequences can be exported to ```.step``` and ```.stl``` files and all temporary and final results are saved for later inspection.
+In the notebook `notebooks/pc2cad.ipynb` one can interactively encode point clouds into latent representations, decode them into CAD-sequences and analyse, how the Command- and Argument-Loss are calculated in thorough detail. Furthermore all CAD-sequences can be exported to `.step` and `.stl` files and all temporary and final results are saved for later inspection.
 
 ## Evaluation
-In order to evaluate the DeepCAD model in auto-encoding CAD-sequences and the PointNet++ and DeepCAD pipeline in reconstructing point clouds to CAD-models, there are two scripts provided by the authors of DeepCAD and modified for this project. Before calculating the metrics $ACC_{cmd}$ and $ACC_{args}$ first infer all samples (or whole sets) that you want to evaluate and place them within "path/to/output/dir". If you run ```pc2cad.py``` the outputs will be automatically saved in the model directory. 
+In order to evaluate the DeepCAD model in auto-encoding CAD-sequences and the PointNet++ and DeepCAD pipeline in reconstructing point clouds to CAD-models, there are two scripts provided by the authors of DeepCAD and modified for this project. Before calculating the metrics $ACC_{cmd}$ and $ACC_{args}$ first infer all samples (or whole sets) that you want to evaluate and place them within "path/to/output/dir". If you run `pc2cad.py` the outputs will be automatically saved in the model directory. 
 
 Test the PointNet++ to get the MSE:
 ```bash
 $ python code/test.py --model_path "path/to/model/from/root"
 ```
-Infer all test point clouds to obtain the vectorized CAD-sequences. The output directory specified by ```exp_name``` is saved in the model directory under "results". Also it is the one to provide for the evaluation scripts:
+Infer all test point clouds to obtain the vectorized CAD-sequences. The output directory specified by `exp_name` is saved in the model directory under "results". Also it is the one to provide for the evaluation scripts:
 ```bash
 $ python pc2cad.py --exp_name "recreate_metrics" --model_path "path/to/model/from/root" --phase "test"
 ```
@@ -230,8 +304,8 @@ To obtain the Chamfer Distance and Invalid Ratio run:
 $ python models/DeepCAD/evaluation/evaluate_ae_cd.py --src "path/to/output/dir"
 ```
 
-## Pytest
-In order to check if the datasets comprise of all data and the data aligns (i.e. the correct point cloud path is assigned to the equivalent latent representation and CAD-sequence). To run the tests (after exporting Pythonpath) enter the following in the command line from the root directory:
+## Tests
+The tests check that the datasets are complete and that the data aligns, i.e. that each point cloud path is matched with the equivalent latent representation and CAD sequence. Run them from the repository root, after exporting `PYTHONPATH`:
 ```bash
 $ pytest tests/
 ```
