@@ -460,6 +460,3 @@ def save_metrics(*lists, save_path, epoch):
 if __name__ == '__main__':
     args = parse_args()
     main(args)
-
-
-# TODO: README

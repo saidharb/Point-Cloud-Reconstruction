@@ -374,19 +374,3 @@ def main(args):
 if __name__ == '__main__':
     args = parse_args()
     main(args)
-
-
-
-
-
-# TODO
-# NEW Training same as "non_aug_run", but with pc augmentation?
-# Maybe try again to make the github model work
-
-# README
-# Envirnonment req.txt for DeepCAD conda
-# wandb for testing
-# gpu arg in parser
-# architecture arg 
-
-

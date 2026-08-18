@@ -109,7 +109,7 @@ def main(args):
     num_workers = 0 if device.type == 'cpu' else 8
     dataset = PointCloudEmbeddingSequenceDataset(DATA_DIR, args.phase)
     dataloader = DataLoader(dataset, batch_size = batch_size, num_workers = num_workers, shuffle = False)
-    num_samples = len(dataloader) # FIXME When infering from a directory adapt this dynamically
+    num_samples = len(dataloader) # Note: assumes a full split; inferring from a bare directory needs this set dynamically.
     
     # Load DeepCAD model
     cfg = ConfigAE('test', parse=False) # Creates config data and model and log dirs if they don't exist
@@ -176,7 +176,7 @@ def main(args):
 
             # if i == 10:
             #     break
-    monitor.log_and_print(f"Avg. MSE-Loss: {mse_running_loss/num_samples:8.8f} " # FIXME When not infering sets, change this
+    monitor.log_and_print(f"Avg. MSE-Loss: {mse_running_loss/num_samples:8.8f} " # Note: the average is over a full split; adjust the divisor for single-directory inference.
                           f"Avg. Command-Loss: {cmd_running_loss/num_samples:8.5f} " 
                           f"Avg. Argument-Loss: {args_running_loss/num_samples:8.5f}")
     
@@ -185,28 +185,3 @@ def main(args):
 if __name__ == '__main__':
     args = parse_args()
     main(args)
-
-
-# TODO  
-
-#       differentiation if CAD sequence targets are available or not -> new pc testing
-
-#       export2step
-
-#       infer the whole train, val and testset with the best model from the cluster!
-
-#       Update req.txt conda
-
-# TODO  
-#       denormalizing in jupyter notebook
-#       from vector vec2solid
-# DONE
-#       Integrate command line arguments in configAE.py
-#       Loss theoretisch verstehen
-#       Collect inference metrics (Avg. MSE in PC->z, CADLoss z->CAD)
-#       STIMMEN EIGENTLICH PC UND LATENT ÜBEREIN?? -> Ja
-#       Script should be able to infer train/val/test set
-#       But also one should be able to specify a dir with pointclouds inside
-#       Maybe there needs to be some 
-
-#       Refactor pc_to_cad_pipeline notebook

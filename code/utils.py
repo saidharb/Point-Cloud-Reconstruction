@@ -522,6 +522,6 @@ class LearningRateStepSchedulerPrimitiveExtrusion():
                                           f"{self.get_current_learning_rate() * self.factor} which is "
                                           "below the minimum learning rate of {self.min_lr}.")
 
-        
-# TODO
-# Transfer Step lr scheduler to new format
+
+# Note: the step-based scheduler above still uses the original configuration format;
+# it is kept as-is because the published runs were trained with it.
