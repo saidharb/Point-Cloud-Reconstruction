@@ -17,7 +17,7 @@ To convert CAD sequences from the DeepCAD dataset into point clouds, use the `js
 $ cd models/DeepCAD/dataset
 $ python json2pc.py
 ```
-This will create a new `pc_cad` directory within the `data` directory, containig the `.ply` point cloud files for the CAD sequences in the DeepCAD dataset.
+This will create a new `pc_cad` directory within the `data` directory, containing the `.ply` point cloud files for the CAD sequences in the DeepCAD dataset.
 
 ### Encode CAD Sequences into Latent Representation
 #### Download pretrained model
@@ -145,7 +145,7 @@ $ conda install -c conda-forge open3d
 ```
 
 ### Train PointNet++
-In order to train PointNet++ a training script is developed, which will dynamically adapt to CPU or GPU. Before executing the training scrip two environment variables have to be set, in particular the `PYTHONPATH` and the `WANDB_API_KEY`, if training should be tracked using Weight and Biases. The API key can be obtained from your user account at WandB. Set the environment variables from the root repository like this:
+In order to train PointNet++ a training script is developed, which will dynamically adapt to CPU or GPU. Before executing the training script, two environment variables have to be set, in particular the `PYTHONPATH` and the `WANDB_API_KEY`, if training should be tracked using Weight and Biases. The API key can be obtained from your user account at WandB. Set the environment variables from the root repository like this:
 
 ```bash
 $ export PYTHONPATH=$(pwd):$PYTHONPATH
@@ -211,7 +211,7 @@ $ python pc2cad.py --exp_name "test_experiment" --model_path "path/to/model.pth"
 In the notebook ```notebooks/pc2cad.ipynb``` one can interactively encode point clouds into latent representations, decode them into CAD-sequences and analyse, how the Command- and Argument-Loss are calculated in thorough detail. Furthermore all CAD-sequences can be exported to ```.step``` and ```.stl``` files and all temporary and final results are saved for later inspection.
 
 ## Evaluation
-In order to evaluate the DeepCAD model in auto-encoding CAD-sequences and the PointNet++ and DeepCAD pipeline in reconstruction point clouds to CAD-models, there are two scripts provided by the authors of DeepCAD and modfied for this project. Bevor calcualting the metrics $ACC_{cmd}$ and $ACC_{cmd}$ first infer all samples (or whole sets) that you want to evaluate and place them within "path/to/output/dir". If you run ```pc2cad.py``` the outputs will be automatically saved in the model directory. 
+In order to evaluate the DeepCAD model in auto-encoding CAD-sequences and the PointNet++ and DeepCAD pipeline in reconstructing point clouds to CAD-models, there are two scripts provided by the authors of DeepCAD and modified for this project. Before calculating the metrics $ACC_{cmd}$ and $ACC_{args}$ first infer all samples (or whole sets) that you want to evaluate and place them within "path/to/output/dir". If you run ```pc2cad.py``` the outputs will be automatically saved in the model directory. 
 
 Test the PointNet++ to get the MSE:
 ```bash
@@ -231,7 +231,7 @@ $ python models/DeepCAD/evaluation/evaluate_ae_cd.py --src "path/to/output/dir"
 ```
 
 ## Pytest
-In order to check if the datasets comprise of all data and the data alligns (i.e. the correct point cloud path is assigned to the equivalent latent representation and CAD-sequence). To run the tests (after exporting Pythonpath) enter the following in the command line from the root directory:
+In order to check if the datasets comprise of all data and the data aligns (i.e. the correct point cloud path is assigned to the equivalent latent representation and CAD-sequence). To run the tests (after exporting Pythonpath) enter the following in the command line from the root directory:
 ```bash
 $ pytest tests/
 ```
@@ -260,8 +260,44 @@ The datasets subsample points with the global `random` module. During training t
 
 ## Other
 ### Experimental notebooks
-In the code directory you can find experimental jupyter notebooks, which I use to explore and test out scripts and models.
+The `notebooks` directory holds the exploratory notebooks used to develop and inspect the
+scripts and models. They are kept for transparency and are not part of the reproduction
+path described above; paths inside them are relative to the repository root.
 
 ### Report
-In the report directory you can find the slides for my literature research. The whole repository is still work in progress.
+The `report` directory contains the slides for the literature review that preceded this work.
+
+## Citation
+If you use this code or the accompanying dataset, please cite:
+
+> Harb, S., Maboudi, M., and Gerke, M.: Extrusion Segmentation Strategy to improve CAD
+> Reconstruction from Point Cloud, *The International Archives of the Photogrammetry,
+> Remote Sensing and Spatial Information Sciences*, XLIX-B2-2026, 189-197, 2026.
+> https://doi.org/10.5194/isprs-archives-XLIX-B2-2026-189-2026
+
+```bibtex
+@Article{isprs-archives-XLIX-B2-2026-189-2026,
+  AUTHOR  = {Harb, S. and Maboudi, M. and Gerke, M.},
+  TITLE   = {Extrusion Segmentation Strategy to improve CAD Reconstruction from Point Cloud},
+  JOURNAL = {The International Archives of the Photogrammetry, Remote Sensing and Spatial Information Sciences},
+  VOLUME  = {XLIX-B2-2026},
+  YEAR    = {2026},
+  PAGES   = {189--197},
+  URL     = {https://isprs-archives.copernicus.org/articles/XLIX-B2-2026/189/2026/},
+  DOI     = {10.5194/isprs-archives-XLIX-B2-2026-189-2026}
+}
+```
+
+## License
+This repository is released under the MIT License; see [LICENSE](LICENSE).
+
+### Third-party code
+Two upstream projects are vendored under `models/` and remain under their own licenses:
+
+- [DeepCAD](https://github.com/ChrisWu1997/DeepCAD) (Wu et al., ICCV 2021) — MIT,
+  Copyright (c) 2022 Rundi Wu. Modifications made for this project are recorded in
+  [models/DeepCAD/CHANGELOG.md](models/DeepCAD/CHANGELOG.md).
+- [Pointnet_Pointnet2_pytorch](https://github.com/yanx27/Pointnet_Pointnet2_pytorch) — MIT,
+  Copyright (c) 2019 benny. Modifications are recorded in
+  [models/Pointnet_Pointnet2_pytorch/CHANGELOG.md](models/Pointnet_Pointnet2_pytorch/CHANGELOG.md).
 
