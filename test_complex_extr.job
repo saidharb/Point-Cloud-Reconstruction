@@ -8,9 +8,9 @@
 #SBATCH --error=msg%x.%j.err
 #SBATCH --exclude=gpu07
 
-cd /work/y0110479/Master-Thesis/Point-Cloud-Reconstruction
+cd "${PROJECT_ROOT:?set PROJECT_ROOT to the repository checkout}"
 export PYTHONPATH=$(pwd):$PYTHONPATH
-export WANDB_API_KEY=22efc7f5b70c0a0812fb73908cb58c659dfd8239
+# WandB tracking is optional; export WANDB_API_KEY in your environment to enable it.
 
 # to check GPUs
 nvidia-smi
