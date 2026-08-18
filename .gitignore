@@ -58,6 +58,10 @@ src/
 # Experiment results
 notebooks/experiments/
 
+# Scratch notebooks from unrelated projects, kept locally but not published
+notebooks/hiwi.ipynb
+notebooks/kkn.ipynb
+
 # Point Cloud files
 **/*.pcd
 **/*.ply
